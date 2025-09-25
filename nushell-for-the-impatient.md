@@ -57,6 +57,28 @@ ps | where name =~ chrome | select pid name | first 5
 
 When formats change, the old way breaks. Nushell's structured approach adapts automatically.
 
+### Thinking in Nushell
+
+Nushell is fundamentally different from traditional shells. It's not just a command interpreter—it's a programming language with a shell interface:
+
+**Key Principles:**
+- **Every command returns a value** (not just text output)
+- **Variables are immutable by default** (functional programming influence)
+- **Two-stage processing**: parsing first, then evaluation
+- **Structured data flows** through pipelines, not text streams
+- **Type safety** prevents common scripting errors
+
+**Mental Model Shift:**
+```nu
+# Traditional shell thinking: "What text will this produce?"
+ls -la | grep ".txt" | cut -d' ' -f9
+
+# Nushell thinking: "What structured data will this create?"
+ls | where name ends-with ".txt" | get name
+```
+
+This shift from text manipulation to data transformation makes scripts more reliable and easier to debug.
+
 ### Getting Started
 
 Install Nushell for your platform:
@@ -106,7 +128,17 @@ Nushell has rich, built-in data types that make complex data manipulation simple
 3.14159              # float
 "hello world"        # string
 true                 # bool
-null                 # null value
+null                 # null/nothing value
+
+# Specialized numeric types
+10mb                 # filesize
+2min                 # duration
+2023-12-01           # date
+
+# Range types
+1..10                # range from 1 to 10
+1..=10               # inclusive range
+1..<10               # exclusive range
 
 # Collection types
 [1, 2, 3]            # list
@@ -117,9 +149,24 @@ null                 # null value
   {name: "Alice", role: "Engineer"},
   {name: "Bob", role: "Designer"}
 ]
+
+# Special types
+{ |x| $x + 1 }       # block/closure
+any                  # matches any type
 ```
 
 **Key insight:** Every Nushell command returns one of these structured types, not raw text. This is what enables powerful data processing.
+
+**Type Inspection:**
+```nu
+# Check what type something is
+42 | describe                    # "int"
+[1, 2, 3] | describe            # "list<int>"
+{name: "Alice"} | describe      # "record<name: string>"
+
+# Detailed type information
+$env | describe --detailed       # Shows all environment variable types
+```
 
 ### Type Checking and Conversion
 
@@ -775,18 +822,25 @@ def system_monitor [] {
 
 ### Navigation and Directory Operations
 
-Nushell provides familiar navigation with structured enhancements:
+Nushell provides familiar navigation with structured enhancements and cross-platform consistency:
 
 ```nu
 # Basic navigation
 cd ~/Documents      # Change directory
 pwd                 # Current directory
 ls                  # List with rich information
-ls -la              # Include hidden files
+ls -la              # Include hidden files and details
+ls -s               # Show file sizes
+
+# Advanced navigation patterns
+cd ..               # Parent directory
+cd ../..            # Two levels up
+cd ...              # Also two levels up (Nushell shortcut)
+cd -                # Previous directory
 
 # Directory operations
 mkdir new_project
-mkdir -p deep/nested/structure  # Create parent directories
+mkdir modules/my/new_module     # Automatically creates nested directories
 rmdir empty_directory
 rm -rf directory_with_content   # Recursive removal
 ```
@@ -799,6 +853,45 @@ ls -la | grep ".txt" | wc -l
 
 # Nushell workflow
 ls | where name ends-with ".txt" | length
+
+# Advanced file system operations
+ls **/*.md          # Find all markdown files recursively
+ls | where size > 1mb | sort-by modified | reverse  # Large files by date
+ls | where type == dir | get name  # Just directory names
+
+# Glob patterns work everywhere
+ls *.{rs,toml}      # Multiple extensions
+ls **/test_*.nu     # Test files in any subdirectory
+```
+
+### Working with Paths
+
+Nushell provides powerful path manipulation:
+
+```nu
+# Path operations
+"~/docs/file.txt" | path expand        # Expand ~ and relative paths
+"file.txt" | path parse                # {parent: ".", stem: "file", extension: "txt"}
+["home", "user", "docs"] | path join   # "home/user/docs" (cross-platform)
+
+# Path information
+"script.nu" | path exists              # true/false
+"script.nu" | path dirname             # Get directory part
+"script.nu" | path basename            # Get filename part
+"script.nu" | path extension           # Get extension
+
+# Cross-platform path handling
+let config_dir = if ($nu.os-info.name == "windows") {
+  $env.APPDATA | path join "myapp"
+} else {
+  $env.HOME | path join ".config" "myapp"
+}
+
+# Construct paths safely
+let data_file = $config_dir | path join "data.json"
+if ($data_file | path exists) {
+  open $data_file
+}
 ```
 
 ### File Operations
@@ -820,27 +913,85 @@ ls | where name == "myfile.txt" | first
 stat myfile.txt      # Detailed file stats
 ```
 
-### Reading and Writing Files
+### Loading and Working with Data
 
-Nushell automatically handles common file formats:
+Nushell excels at loading data from various sources and formats:
 
 ```nu
 # Text files
 open readme.txt                    # Read as string
 open readme.txt | lines           # Read as list of lines
+open binary_file --raw             # Read as binary data
 "Hello, World!" | save greeting.txt
 
-# Structured data (automatic parsing)
+# Structured data (automatic parsing by extension)
 open config.json                  # Automatically parsed JSON
 open data.csv                     # Automatically parsed CSV
 open settings.yaml                # Automatically parsed YAML
+open config.toml                  # Automatically parsed TOML
+open database.db                  # SQLite database
+open document.xml                 # XML document
 
-# Save structured data
-{name: "Alice", age: 30} | save person.json
-[{a: 1}, {a: 2}] | save data.csv
+# Manual format parsing
+open data.txt | from json         # Parse text as JSON
+open "pipe|separated|data" | from csv --separator '|'
+open config_file | from yaml      # Parse as YAML regardless of extension
+
+# NUON (Nushell Object Notation) - human-friendly format
+let data = {
+  users: [
+    {name: "Alice", active: true},
+    {name: "Bob", active: false}
+  ],
+  settings: {debug: true, timeout: 30sec}
+}
+$data | save config.nuon          # Save in NUON format
+open config.nuon                  # Perfectly preserved types
+
+# Advanced data loading patterns
+open people.txt | lines |
+  split column "|" first_name last_name job |
+  str trim                        # Parse pipe-delimited text
+
+# Load from URLs
+http get "https://api.github.com/repos/nushell/nushell/releases" |
+  select tag_name published_at    # Structured API data
+
+# Load and convert between formats
+open data.csv | to json | save data.json  # CSV to JSON conversion
+open config.yaml | to toml | save config.toml  # YAML to TOML
 ```
 
-**Power feature:** Nushell recognizes file extensions and automatically parses/formats data. No more manual `jq` or CSV parsing!
+**Power feature:** Nushell recognizes file extensions and automatically parses/formats data. The type system preserves data integrity through the entire pipeline.
+
+### Data Format Conversion
+
+Seamlessly convert between different data formats:
+
+```nu
+# Format conversion pipeline
+open sales_data.csv |
+  where revenue > 1000 |
+  group-by region |
+  to yaml |
+  save regional_sales.yaml
+
+# Multi-format processing
+ls data_files/ | where name =~ "\.(json|yaml|toml)$" | each { |file|
+  let data = open $file.name
+  let output_name = ($file.name | str replace --regex "\.(json|yaml|toml)$" ".nuon")
+  $data | save $output_name
+}
+
+# Preserve type information with NUON
+let complex_data = {
+  timestamp: (date now),
+  duration: 5min 30sec,
+  file_sizes: [1.5mb, 800kb, 2.1gb],
+  active: true
+}
+$complex_data | save --raw data.nuon  # Preserves all Nushell types
+```
 
 ### Working with Different Data Formats
 
@@ -3152,6 +3303,37 @@ $'(ansi purple_bold)Purple text!(ansi reset)'      # Colored output
 # Date and time manipulation
 date now | date to-timezone "Europe/London"        # Timezone conversion
 {name: "project", date: (date now)} | upsert language 'Rust'  # Update records
+
+# Advanced file operations with glob patterns
+ls **/*.{rs,py,js} | where size > 1kb | group-by { $in.name | path parse | get extension }
+
+# Path manipulation and cross-platform handling
+["~", "config", "app.json"] | path join | path expand | open  # Safe config loading
+$env.HOME | path join ".ssh" "id_rsa.pub" | open | str trim    # SSH key reading
+
+# Complex data loading and transformation
+open data.csv | from csv | where age > 18 | to nuon | save adults.nuon  # Multi-format pipeline
+
+# Type-aware data processing
+ls | each { |file| {name: $file.name, type: ($file | describe), size_mb: ($file.size / 1mb)} }
+
+# Automatic format detection and conversion
+glob **/*.{json,yaml,toml} | each { |file| open $file | to nuon | save ($file | str replace -r '\.(json|yaml|toml)$' '.nuon') }
+
+# Advanced pipeline combinations
+ls **/*.rs | where size > 1kb | each { |file| {name: $file.name, lines: (open $file.name | lines | length), complexity: (open $file.name | str contains "fn " | length)} } | sort-by complexity | reverse
+
+# Database-like operations
+open employees.csv | query db "SELECT department, AVG(salary) as avg_salary FROM this GROUP BY department ORDER BY avg_salary DESC"
+
+# Real-time monitoring with watch
+watch . --debounce-ms 500 { |op, path| if ($path | str ends-with ".rs") { print $"Rust file ($op): ($path)" } }
+
+# Complex transformations with metadata preservation
+ls | each { |file| $file | insert file_type (match ($file.name | path parse | get extension) { "rs" => "rust", "py" => "python", "js" => "javascript", _ => "other" }) } | metadata set {source: "file_analysis"}
+
+# Statistical analysis workflows
+open data.csv | where age > 18 | group-by department | transpose dept employees | each { |row| {department: $row.dept, count: ($row.employees | length), avg_age: ($row.employees | get age | math avg | math round --precision 1)} }
 ```
 
 **Exercise:** Extend the file organizer to support custom organization rules defined in a configuration file, including regex patterns for file names and custom directory structures.
@@ -3367,46 +3549,71 @@ Nushell transforms shell programming from text manipulation to structured data p
 ### Most Used Commands (90% of daily usage)
 ```nu
 # Navigation & Files
-ls, cd, pwd, open, save
+ls, cd, pwd, mkdir, mv, cp, rm, open, save, glob, touch
 
-# Data Processing
-where, select, sort-by, group-by, first, last, length
+# Data Processing (Core Pipeline)
+where, select, reject, sort-by, group-by, first, last, length
+take, skip, drop, slice, reverse, shuffle, unique
 
-# Transformation
-each, reduce, append, insert, update
+# Data Transformation
+each, reduce, append, prepend, insert, update, upsert
+flatten, transpose, pivot, merge, join, zip
 
 # Text Processing
-str trim, str replace, lines, parse, split row
+lines, parse, split {row, column, chars}, str {trim, replace, contains}
+from/to {csv, json, yaml, toml}, detect columns
 
-# System
-ps, sys, help, which
+# System Information
+ps, sys, whoami, version, help, which, describe
 
-# Math
-math sum, math avg, math max, math min
+# Math & Statistics
+math {sum, avg, max, min, median, stddev}, range, seq
 ```
 
 ### Advanced Commands (for power users)
 ```nu
 # Complex Data Operations
-transpose, flatten, wrap, unwrap, zip, enumerate, collect
+transpose, flatten, wrap, unwrap, zip, enumerate, collect, chunks
+roll {up, down, left, right}, rotate, window, tee
 
 # External Integration
-^command, with-env, jobs, fg, bg
+^command, with-env, run-external, complete, exec
 
 # Network & APIs
 http {get, post, put, patch, delete, head, options}
-url {parse, join, encode, decode}
+url {parse, join, encode, decode, build-query, split-query}
 port  # Check if port is open
 
-# File Formats
-from/to: json, csv, yaml, toml, xml, ssv, nuon
+# File Formats & Conversion
+from/to: {json, csv, yaml, toml, xml, ssv, nuon, sqlite, msgpack}
+open, save  # Auto-detects format by extension
+lines, split column, detect columns  # Manual text parsing
+into {string, int, float, bool, datetime, filesize, duration}
 
-# Module System
-use, source, export, overlay {new, use, hide, list}
+# Module System & Code Organization
+use, source, export, module, overlay {new, use, hide, list}
+export {def, alias, const, env}, hide, hide-env
 
-# Advanced Operators
-bit-and, bit-or, bit-xor, bit-shl, bit-shr
-starts-with, ends-with, =~, !~
+# Advanced Text Processing
+str {camel-case, snake-case, kebab-case, title-case, pascal-case}
+str {distance, expand, stats, index-of}, encode/decode
+
+# System & Process Management
+kill, jobs, ps, sys {cpu, mem, disks, host, users, temp}
+input, sleep, watch, term {size, query}
+
+# Database Operations
+query {db, json, xml, web}, stor {create, insert, update, delete}
+schema  # SQLite schema inspection
+
+# Advanced Math & Statistics
+random {int, float, bool, chars, uuid}, seq {char, date}
+math {sin, cos, tan, ln, log, sqrt, abs, ceil, floor}
+
+# Specialized Features
+timeit, debug {info, profile}, metadata, inspect
+polars  # DataFrame operations (if plugin available)
+try-catch, error make, panic
 ```
 
 ### Tips for Transitioning from Other Shells
@@ -3420,11 +3627,20 @@ starts-with, ends-with, =~, !~
 - Nushell's objects are similar but syntax is more functional
 - Use `|` for pipelines, `{ }` for blocks
 - `where` and `select` work similarly
+- `Get-Content` → `open`, `ConvertFrom-Json` → automatic parsing
 
 **From Fish:**
 - Nushell has similar modern features but with structured data
 - Completions work automatically for most commands
 - Configuration is more programmatic
+- Fish's `string` → Nushell's `str` subcommands
+
+**From Python/pandas:**
+- `df.groupby()` → `group-by`
+- `df.select()` → `select`
+- `df.filter()` → `where`
+- `df.sort_values()` → `sort-by`
+- `df.head()` → `first`, `df.tail()` → `last`
 
 ## Appendix D: Common Patterns
 
