@@ -2,18 +2,35 @@
 
 *Master structured shell programming and data processing fast*
 
+**Version 3.0 - January 2025**
+
 ---
 
 ## Table of Contents
 
-**Chapter 1: [Fundamental Programming Concepts](#chapter-1)** - Variables, data types, and basic operations
-**Chapter 2: [Working with Structured Data](#chapter-2)** - Tables, records, lists, and data transformations
-**Chapter 3: [Control Flow and Functions](#chapter-3)** - Conditionals, loops, and custom commands
-**Chapter 4: [File System and I/O Operations](#chapter-4)** - File handling, directories, and data formats
-**Chapter 5: [Text Processing and Pattern Matching](#chapter-5)** - String manipulation and parsing
-**Chapter 6: [System Integration](#chapter-6)** - External commands, environment, and process management
-**Chapter 7: [Advanced Data Processing](#chapter-7)** - Complex transformations, pipelines, and error handling
-**Chapter 8: [Building Real Applications](#chapter-8)** - Putting it all together with practical examples
+**Chapter 1: [Fundamental Programming Concepts](#chapter-1)**
+*Variables, data types, and basic operations*
+
+**Chapter 2: [Working with Structured Data](#chapter-2)**
+*Tables, records, lists, and data transformations*
+
+**Chapter 3: [Control Flow and Functions](#chapter-3)**
+*Conditionals, loops, and custom commands*
+
+**Chapter 4: [File System and I/O Operations](#chapter-4)**
+*File handling, directories, and data formats*
+
+**Chapter 5: [Text Processing and Pattern Matching](#chapter-5)**
+*String manipulation and parsing*
+
+**Chapter 6: [System Integration](#chapter-6)**
+*External commands, environment, and process management*
+
+**Chapter 7: [Advanced Data Processing](#chapter-7)**
+*Complex transformations, pipelines, and error handling*
+
+**Chapter 8: [Building Real Applications](#chapter-8)**
+*Putting it all together with practical examples*
 
 ---
 
@@ -124,19 +141,36 @@ Check types and convert between them safely:
 Arithmetic and string operations work intuitively:
 
 ```nu
-# Math
+# Math operators
 3 + 4 * 2           # 11 (standard precedence)
 2 ** 8              # 256 (exponentiation)
 17 mod 5            # 2 (modulo)
+15 // 4             # 3 (floor division)
 
 # String interpolation
 let name = "World"
 $"Hello, ($name)!"  # "Hello, World!"
 
-# Comparisons
+# Comparison operators
 $age >= 18          # boolean result
 $name == "Alice"    # exact match
 $text =~ "pattern"  # regex match
+$text !~ "pattern"  # inverse regex match
+$text starts-with "Hello"  # prefix check
+$text ends-with "world"    # suffix check
+
+# Logical operators
+true and false      # false
+true or false       # true
+not true           # false
+true xor true      # false
+
+# Bitwise operations
+5 bit-and 3        # 1
+5 bit-or 3         # 7
+5 bit-xor 3        # 6
+8 bit-shl 2        # 32 (shift left)
+8 bit-shr 2        # 2 (shift right)
 ```
 
 ### Your First Data Pipeline
@@ -157,6 +191,7 @@ This pipeline:
 3. `length` counts the results
 
 **Exercise:** Try counting different file types in your current directory. What happens when you change the pattern?
+
 
 ### Quick Start Examples (From the Cookbook)
 
@@ -264,20 +299,60 @@ ls | each { |file|
 
 ### Grouping and Aggregation
 
-Analyze data by categories:
+Analyze data by categories with comprehensive table operations:
 
 ```nu
-# Group by type
-ls | group-by type
+# Basic grouping
+ls | group-by type                      # Group files by type
+ps | group-by name                      # Group processes by name
 
-# Count items in each group
+# Count and analyze groups
 ls | group-by type | transpose type files | each { |group|
   {type: $group.type, count: ($group.files | length)}
 }
 
-# Aggregate numeric data
-ps | select cpu | math sum    # Total CPU usage
-ls | select size | math avg   # Average file size
+# Advanced table operations
+ls | sort-by size                       # Sort by column
+ls | sort-by type name                  # Multi-column sort
+ls | select name size modified          # Select specific columns
+ls | reject type                        # Remove columns
+ls | rename size file_size              # Rename columns
+ls | move name --after size             # Reorder columns
+
+# Table modifications
+ls | insert category "documents"        # Add new column
+ls | update size { |row| $row.size / 1mb }  # Transform column
+ls | upsert category "files"            # Insert or update column
+
+# Combining tables
+$table1 | append $table2                # Vertical concatenation
+$table1 | merge $table2                 # Horizontal merge
+
+# Advanced filtering and selection
+ls | first 5                           # First 5 rows
+ls | last 3                            # Last 3 rows
+ls | skip 2                            # Skip first 2 rows
+ls | take 10                           # Take first 10 rows
+ls | drop 5                            # Remove last 5 rows
+
+# Aggregation operations
+ps | select cpu | math sum             # Total CPU usage
+ls | select size | math avg            # Average file size
+ls | select size | math max            # Largest file size
+ls | select size | math min            # Smallest file size
+ps | select mem | math median          # Median memory usage
+ps | select cpu | math stddev          # CPU usage standard deviation
+
+# Complex analysis
+ls | group-by type | transpose type files | each { |group|
+  {
+    type: $group.type,
+    count: ($group.files | length),
+    total_size: ($group.files | get size | math sum),
+    avg_size: ($group.files | get size | math avg),
+    largest: ($group.files | sort-by size | last | get name)
+  }
+} | sort-by total_size | reverse
 ```
 
 ### Working with Lists
@@ -285,19 +360,44 @@ ls | select size | math avg   # Average file size
 Lists are ordered collections that can hold any data type:
 
 ```nu
-# Create and manipulate lists
-let numbers = [1, 2, 3, 4, 5]
-$numbers | first 3           # [1, 2, 3]
-$numbers | last 2            # [4, 5]
-$numbers | skip 1            # [2, 3, 4, 5]
+# Create lists (multiple syntaxes)
+let numbers = [1, 2, 3, 4, 5]     # Standard syntax
+let colors = [red yellow green]    # Bare words
+let mixed = [1, "text", true]      # Mixed types
 
-# Transform lists
-$numbers | each { |n| $n * 2 }        # [2, 4, 6, 8, 10]
-$numbers | where { |n| $n mod 2 == 0 } # [2, 4]
+# Access and extract
+$numbers.1                    # Get index 1: 2
+$numbers | get 2              # Get index 2: 3
+$numbers | first 3            # [1, 2, 3]
+$numbers | last 2             # [4, 5]
+$numbers | skip 1             # [2, 3, 4, 5]
+$numbers | length             # 5
+$numbers | is-empty           # false
+
+# Transform and filter
+$numbers | each { |n| $n * 2 }          # [2, 4, 6, 8, 10]
+$numbers | where { |n| $n mod 2 == 0 }   # [2, 4]
+$numbers | enumerate                     # Add index column
+$colors | where ($it | str ends-with 'w') # [yellow]
+
+# Modify lists (returns new list)
+$numbers | insert 1 99        # [1, 99, 2, 3, 4, 5]
+$numbers | update 1 99        # [1, 99, 3, 4, 5]
+$numbers | prepend 0          # [0, 1, 2, 3, 4, 5]
+$numbers | append 6           # [1, 2, 3, 4, 5, 6]
 
 # Combine lists
-[1, 2] | append [3, 4]       # [1, 2, 3, 4]
-[1, 2, 3] | prepend 0        # [0, 1, 2, 3]
+[1, 2] | append [3, 4]        # [1, 2, 3, 4]
+$numbers | flatten            # Expand nested lists
+$list1 | zip $list2           # Combine element-wise
+
+# Reduce operations
+$numbers | reduce { |it, acc| $acc + $it }  # Sum: 15
+$colors | str join ", "       # "red, yellow, green"
+
+# Membership testing
+3 in $numbers                 # true
+"blue" not-in $colors         # true
 ```
 
 ### Working with Records
@@ -371,6 +471,7 @@ def analyze_directory [path: string = "."] {
 ```
 
 **Exercise:** Create a small dataset representing books (title, author, year, pages) and practice filtering, sorting, and grouping operations.
+
 
 ---
 
@@ -501,10 +602,11 @@ Add command-line style options to your functions:
 
 ```nu
 def search_files [
-  pattern: string,           # Required parameter
-  --case-sensitive,          # Boolean flag
-  --extension (-e): string,  # Flag with value
-  --max-results (-n): int = 10  # Flag with default
+  pattern: string,                    # Required parameter
+  --case-sensitive,                   # Boolean flag
+  --extension (-e): string,           # Flag with value
+  --max-results (-n): int = 10,       # Flag with default
+  ...paths: string                    # Rest parameters
 ] {
   let files = if ($extension | is-empty) {
     ls
@@ -521,10 +623,36 @@ def search_files [
   $filtered | first $max_results
 }
 
+# Advanced parameter features
+def greet [
+  name: string,                       # Required typed parameter
+  age?: int,                          # Optional parameter
+  --title: string = "Mr/Ms",          # Flag with default
+  --verbose (-v),                     # Short flag alias
+  ...nicknames: string                # Variable arguments
+] {
+  let greeting = $"Hello, ($title) ($name)"
+  if $verbose {
+    print $"($greeting) (age: ($age // "unknown"))"
+    if ($nicknames | length) > 0 {
+      print $"Also known as: ($nicknames | str join ', ')"
+    }
+  } else {
+    print $greeting
+  }
+}
+
 # Usage examples
-search_files "test"                    # Basic search
-search_files "Test" --case-sensitive   # Case sensitive
-search_files "config" -e ".json" -n 5 # With extension and limit
+search_files "test"                           # Basic search
+search_files "Test" --case-sensitive          # Case sensitive
+search_files "config" -e ".json" -n 5        # With extension and limit
+greet "Alice" 30 --verbose "Al" "Ally"       # With optional and rest params
+
+# Environment-modifying functions
+def --env cd-and-list [path: string] {
+  cd $path
+  ls
+}
 ```
 
 ### Pipeline Functions
@@ -636,6 +764,7 @@ def system_monitor [] {
 ```
 
 **Exercise:** Create a function that analyzes disk usage by directory and reports the top space consumers.
+
 
 ---
 
@@ -866,25 +995,47 @@ def process_files [pattern: string, action: closure] {
 
 **Exercise:** Create a function that organizes photos by date taken (using file modification time) into year/month directory structure.
 
+
 ---
 
 ## Chapter 5: Text Processing and Pattern Matching {#chapter-5}
 
 ### String Manipulation Basics
 
-Nushell provides comprehensive string operations that feel natural:
+Nushell provides comprehensive string operations with multiple string types:
 
 ```nu
+# String types
+'single quotes'                    # No escape sequences
+"double quotes\nwith escapes"      # C-style escapes (\n, \t, \u{1F60A})
+r#'raw string with 'quotes'#       # Raw strings, flexible delimiters
+`backtick string with spaces`      # Simple quoted strings
+hello                              # Bare word (limited characters)
+$"interpolated string: (2 + 3)"   # String interpolation
+
 # Basic string info
 "hello world" | str length              # 11
 "" | str is-empty                       # true
 "   spaces   " | str trim               # "spaces"
+"text" | str reverse                    # "txet"
 
 # Case conversion
 "Hello World" | str downcase            # "hello world"
 "hello world" | str upcase              # "HELLO WORLD"
 "hello world" | str title-case          # "Hello World"
 "hello world" | str capitalize          # "Hello world"
+
+# String slicing and indexing
+"Hello World" | str substring 0..4      # "Hello"
+"Hello World" | str substring 6..       # "World"
+"abcdef" | str index-of "cd"            # 2
+"text" | str chars                      # Split into character list
+
+# Advanced string operations
+"hello" | str pad-left 10 "-"           # "-----hello"
+"hello" | str pad-right 10 "-"          # "hello-----"
+"banana" | str replace "a" "o"          # "bonono" (first occurrence)
+"banana" | str replace --all "a" "o"    # "bonono" (all occurrences)
 ```
 
 ### String Splitting and Joining
@@ -1145,6 +1296,7 @@ def format_phone [phone: string] {
 ```
 
 **Exercise:** Create a function that validates and formats phone numbers from various input formats into a standard format.
+
 
 ---
 
@@ -1445,6 +1597,7 @@ def service_health [] {
 ```
 
 **Exercise:** Create a function that monitors a web service by periodically checking its health endpoint and logging response times and status codes.
+
 
 ---
 
@@ -1806,6 +1959,7 @@ def find_outliers [data: list, column: string] {
 ```
 
 **Exercise:** Create a data quality assessment function that analyzes a dataset and reports missing values, data type inconsistencies, and potential outliers.
+
 
 ---
 
@@ -2394,69 +2548,360 @@ def execute_plan [plan: list, verbose: bool] {
 
 **File & Directory Operations:**
 ```nu
-ls, cd, pwd, mkdir, rmdir, cp, mv, rm, open, save, glob, which, du
+ls, cd, pwd, mkdir, rmdir, cp, mv, rm, open, save, touch
+glob, which, du, path {parse, join, exists, dirname, basename}
+start  # Open file with system default application
 ```
 
-**Data Processing:**
+**Data Processing (Core Pipeline Commands):**
 ```nu
-where, select, sort-by, group-by, uniq, first, last, skip, take, length, append, prepend, insert, update, upsert, transpose, reverse, flatten, wrap, unwrap
+# Selection and Filtering
+where, select, reject, get, first, last, skip, take, drop, nth
+
+# Transformation
+each, map, reduce, collect, enumerate, zip, chunks
+insert, update, upsert, rename, move
+
+# Aggregation
+group-by, uniq, count, length, is-empty
+transpose, pivot, flatten, wrap, unwrap
+
+# Ordering
+sort-by, reverse, shuffle, rotate
+
+# Combining
+append, prepend, merge, join, zip
 ```
 
-**Text Processing:**
+**String Processing (str subcommands):**
 ```nu
-str {length, trim, upcase, downcase, contains, starts-with, ends-with, replace, match, split}, parse, lines, detect columns, from {json, csv, yaml, toml, xml}, to {json, csv, yaml, toml}
+# Basic operations
+str length, str trim, str reverse, str upcase, str downcase
+str title-case, str capitalize, str snake-case, str kebab-case
+
+# Testing and matching
+str contains, str starts-with, str ends-with, str match
+str find, str index-of
+
+# Modification
+str replace, str pad-left, str pad-right, str substring
+str chars, str split, str join
+
+# Parsing
+parse, split {row, column, chars, words}, lines, detect columns
 ```
 
 **Math & Statistics:**
 ```nu
-math {sum, avg, min, max, median, mode, stddev, variance, round, floor, ceil, abs}, range
+# Basic math
+math {sum, avg, min, max, median, mode}
+math {stddev, variance, product, abs}
+math {round, floor, ceil, sqrt, log}
+
+# Operations
++, -, *, /, mod, **, bit-and, bit-or, bit-xor
+range, seq, random
+```
+
+**Data Format Conversion:**
+```nu
+# Input formats
+from {json, yaml, csv, tsv, toml, xml, nuon, ssv, ini}
+
+# Output formats
+to {json, yaml, csv, tsv, toml, xml, nuon, html, md}
+
+# Special formats
+format, table, grid, print
 ```
 
 **System Information:**
 ```nu
-ps, sys, whoami, date, version, help, history, which
+ps, sys, whoami, id, uname, date, cal, history
+version, help, which, env, register
 ```
 
 **Network & HTTP:**
 ```nu
-http {get, post, put, delete}, url {parse, join}, fetch
+http {get, post, put, patch, delete, head, options}
+url {parse, join, encode, decode}
+port  # Check if port is open
 ```
 
-**Control Flow:**
+**Process & Job Control:**
 ```nu
-if, match, for, while, loop, break, continue, return, try, catch, error
+jobs, fg, bg, disown, wait, kill, killall
+sleep, watch, run-external
 ```
 
-**Variables & Functions:**
+**Control Flow & Programming:**
 ```nu
-let, mut, def, do, collect, each, reduce, filter, map, zip, enumerate
+# Conditionals
+if, match, try-catch, error
+
+# Loops
+for, while, loop, break, continue, return
+
+# Variables & Functions
+let, mut, const, def, do, source, use
+export, alias, register
+
+# Iteration
+each, where, reduce, fold
 ```
 
 **External Integration:**
 ```nu
-^command, with-env, $env, jobs, fg, bg, kill, run-external
+# External commands
+^command, run-external, with-env
+
+# Environment
+$env, env, export, hide-env, load-env
+
+# Modules & Scripts
+use, source, overlay {new, add, remove, list}
+module, export-env
 ```
 
-### Power User One-Liners (From nu_scripts)
+### Power User One-Liners (From nu_scripts and Cheat Sheet)
 
 ```nu
-# Find duplicate files by hash
-ls **/* | where type == file | insert hash { |f| open $f.name | hash sha256 } | group-by hash | where { ($in | length) > 1 }
+# String manipulation one-liners
+"one,two,three" | split row ","                    # Split string
+[zero one two] | str join ','                       # Join with separator
+'Hello World!' | str substring 4..8                # Slice string: "o Wo"
+'Nushell 0.80' | parse '{shell} {version}'        # Parse into record
+$"greetings, ($name)!"                            # String interpolation
 
-# Monitor CPU usage over time
-1..10 | each { |i| {time: (date now), cpu: (sys | get cpu.cpu_usage)} | sleep 1sec }
+# List manipulation one-liners
+[foo bar baz] | insert 1 'beeze'                   # Insert at index
+[1, 2, 3, 4] | update 1 10                        # Update by index
+$numbers | append 4 | prepend 0                    # Chain operations
+$planets | each { |elt| $"($elt) is a planet" }    # Transform each
+$scores | reduce { |elt, acc| $acc + $elt }        # Sum with reduce
 
-# Convert all CSV files to JSON
-ls *.csv | each { |file| open $file.name | to json | save ($file.name | str replace ".csv" ".json") }
+# Advanced data processing
+ls **/* | where type == file | insert hash { |f| open $f.name | hash sha256 } | group-by hash | where { ($in | length) > 1 }  # Find duplicates
 
-# Find files modified in last N days
-ls **/* | where type == file and modified > ((date now) - 7day)
+ps | where cpu > 0 | sort-by cpu | reverse         # High CPU processes
 
-# Get weather for city (API example)
-http get $"https://wttr.in/(city)?format=j1" | get current_condition.0
+# File operations
+glob **/*.{rs,toml} --depth 2                      # Find files by pattern
+ls | sort-by size | last 5                         # 5 largest files
+ls | where modified > ((date now) - 7day)         # Recent files
+
+# Data conversion chains
+open data.csv | where price > 100 | to json | save expensive.json
+
+# System monitoring
+1..10 | each { |i| {time: (date now), cpu: (sys | get cpu.cpu_usage)} | sleep 1sec }  # Monitor CPU over time
+
+# Network and APIs
+http get "https://api.github.com/repos/nushell/nushell" | get stargazers_count  # Get repo stars
+http get $"https://wttr.in/($city)?format=j1" | get current_condition.0      # Weather data
+
+# Text processing chains
+open log.txt | lines | where $it =~ "ERROR" | length                        # Count error lines
+open config.toml | to yaml | save config.yaml                               # Convert formats
+
+# Advanced table operations
+open sales.csv | group-by product | transpose product sales | each { |group|
+  {product: $group.product, revenue: ($group.sales | get price | math sum)}
+} | sort-by revenue | reverse                                                 # Sales analysis
+
+# Color and formatting
+$'(ansi purple_bold)Purple text!(ansi reset)'      # Colored output
+[one two three] | to yaml                          # Convert to YAML
+'text' | save file.txt                             # Save string to file
+
+# Date and time manipulation
+date now | date to-timezone "Europe/London"        # Timezone conversion
+{name: "project", date: (date now)} | upsert language 'Rust'  # Update records
 ```
 
 **Exercise:** Extend the file organizer to support custom organization rules defined in a configuration file, including regex patterns for file names and custom directory structures.
+
+---
+
+## Appendix B: Configuration and Customization
+
+### Configuration Files
+
+Nushell loads configuration in this order:
+1. `env.nu` - Environment variables and paths
+2. `config.nu` - Nushell settings and customizations
+3. Autoload directories - Automatic module loading
+4. `login.nu` - Login shell specific settings
+
+```nu
+# env.nu - Environment setup
+$env.PATH = ($env.PATH | split row (char esep) | append "/usr/local/bin")
+$env.EDITOR = "code"
+$env.NU_LOG_LEVEL = "INFO"
+
+# config.nu - Nushell configuration
+$env.config = {
+  show_banner: false,
+  edit_mode: vi,
+  shell_integration: true,
+  buffer_editor: "code",
+  table: {
+    mode: rounded,
+    index_mode: always,
+    show_empty: true
+  },
+  completions: {
+    case_sensitive: false,
+    quick: true,
+    partial: true
+  }
+}
+```
+
+### Custom Prompt
+
+```nu
+# In config.nu
+$env.PROMPT_COMMAND = { ||
+  let dir = match (pwd | path basename) {
+    "" => "<root>",
+    $dirname => $dirname
+  }
+
+  let git_branch = try {
+    ^git branch --show-current 2>/dev/null | str trim
+  } catch {
+    ""
+  }
+
+  let branch_part = if ($git_branch | is-empty) {
+    ""
+  } else {
+    $" (ansi cyan)($git_branch)(ansi reset)"
+  }
+
+  $"(ansi green)($dir)(ansi reset)($branch_part)> "
+}
+```
+
+### Useful Aliases and Functions
+
+```nu
+# In config.nu
+alias ll = ls -la
+alias la = ls -a
+alias g = git
+alias k = kubectl
+alias d = docker
+alias c = code
+alias .. = cd ..
+alias ... = cd ../..
+
+# Function-based helpers
+def gst [] { git status }
+def gco [branch] { git checkout $branch }
+def gp [] { git push }
+def gl [] { git log --oneline -10 }
+```
+
+---
+
+## Appendix C: Modules and Code Organization
+
+### Working with Modules
+
+Modules help organize and reuse code across Nushell scripts and applications:
+
+```nu
+# Import entire module
+use std/log
+log info "Application started"
+
+# Import specific definitions
+use std/math PI
+let circumference = 2 * $PI * $radius
+
+# Import all definitions with wildcard
+use std/formats *
+
+# Import with custom naming
+use my-utils as utils
+
+# Import from file paths
+use ./local_module.nu
+use ../shared/common.nu
+```
+
+### Creating Modules
+
+```nu
+# math_utils.nu - Module file
+export def square [x: float] {
+  $x * $x
+}
+
+export def cube [x: float] {
+  $x * $x * $x
+}
+
+export const PI = 3.14159
+
+export def-env set_math_mode [] {
+  $env.MATH_PRECISION = "high"
+}
+```
+
+### Module Organization Best Practices
+
+```nu
+# Project structure
+project/
+├── main.nu          # Main script
+├── config/
+│   └── settings.nu  # Configuration module
+├── utils/
+│   ├── files.nu     # File utilities
+│   ├── network.nu   # Network utilities
+│   └── math.nu      # Math utilities
+└── tests/
+    └── test_utils.nu
+
+# In main.nu
+use config/settings
+use utils/files *
+use utils/network as net
+
+def main [] {
+  let config = settings get_config
+  let files = list_files "./data"
+  let response = net fetch_data $config.api_url
+}
+```
+
+### Working with Overlays
+
+Overlays provide dynamic environment management:
+
+```nu
+# Create and manage overlays
+overlay new my-env              # Create new overlay
+overlay use my-env              # Activate overlay
+overlay list                    # List active overlays
+
+# Overlay from module
+overlay use std/math           # Import module as overlay
+overlay hide std/math          # Deactivate overlay
+
+# Scoped overlays
+overlay use --scoped my-tools {
+  # Commands available only in this block
+  special-command "data"
+}
+
+# Overlay with prefixes
+overlay use utils as util-     # Prefix all commands with 'util-'
+```
+
 
 ---
 
@@ -2514,10 +2959,17 @@ transpose, flatten, wrap, unwrap, zip, enumerate, collect
 ^command, with-env, jobs, fg, bg
 
 # Network & APIs
-http get, http post, url parse, fetch
+http get, http post, url parse
 
 # File Formats
-from/to: json, csv, yaml, toml, xml, ssv
+from/to: json, csv, yaml, toml, xml, ssv, nuon
+
+# Module System
+use, source, export, overlay {new, use, hide, list}
+
+# Advanced Operators
+bit-and, bit-or, bit-xor, bit-shl, bit-shr
+starts-with, ends-with, =~, !~
 ```
 
 ### Tips for Transitioning from Other Shells
@@ -2537,7 +2989,7 @@ from/to: json, csv, yaml, toml, xml, ssv
 - Completions work automatically for most commands
 - Configuration is more programmatic
 
-## Appendix B: Common Patterns
+## Appendix D: Common Patterns
 
 ```nu
 # Pattern: Safe file processing
