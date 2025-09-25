@@ -1,386 +1,473 @@
 # Nushell for the Impatient
 
-## CLI Commands
-1. [Start](#start) 2. [Files](#files) 3. [Dirs](#dirs) 4. [Data](#data) 5. [Text](#text) 6. [System](#sys) 7. [Process](#proc) 8. [Math](#math) 9. [Filter](#filter) 10. [Import](#import)
+*Master structured shell programming and data processing fast*
 
-## Programming
-11. [Variables](#vars) 12. [Control](#control) 13. [Functions](#funcs) 14. [Errors](#errors) 15. [External](#ext) 16. [Advanced](#adv)
+---
 
-## Start {#start}
+## Table of Contents
 
-### Why Nushell Beats Unix Tools
+**Chapter 1: [Fundamental Programming Concepts](#chapter-1)** - Variables, data types, and basic operations
+**Chapter 2: [Working with Structured Data](#chapter-2)** - Tables, records, lists, and data transformations
+**Chapter 3: [Control Flow and Functions](#chapter-3)** - Conditionals, loops, and custom commands
+**Chapter 4: [File System and I/O Operations](#chapter-4)** - File handling, directories, and data formats
+**Chapter 5: [Text Processing and Pattern Matching](#chapter-5)** - String manipulation and parsing
+**Chapter 6: [System Integration](#chapter-6)** - External commands, environment, and process management
+**Chapter 7: [Advanced Data Processing](#chapter-7)** - Complex transformations, pipelines, and error handling
+**Chapter 8: [Building Real Applications](#chapter-8)** - Putting it all together with practical examples
 
-**Type Safety**: Unix commands output untyped text that breaks pipelines when formats change. Nushell outputs structured data with guaranteed types—no more parsing failures.
+---
 
-**Data Flow**: Instead of learning awk syntax + sed regex + grep patterns + cut fields, you learn ONE syntax that works everywhere. `ps | where cpu > 50 | select name pid` reads like English.
+## Chapter 1: Fundamental Programming Concepts {#chapter-1}
 
-**Error Messages**: Unix: `awk: syntax error near line 1`. Nushell: `Expected int, found string "abc" at column 'age' in row 3`. You know exactly what's wrong and where.
+### Why Choose Nushell?
 
-**Data Type Conversion**: Convert between JSON, CSV, YAML, TOML instantly. No external tools needed. `open data.json | to csv` just works.
+Traditional shells treat everything as text. This works until you need to parse, filter, or transform data—then you're wrestling with `awk`, `sed`, `grep`, and custom parsing logic. Nushell changes the game by making structured data a first-class citizen.
 
-**Composability**: Every command outputs the same structured format, so they compose perfectly. No impedance mismatches between tools.
-
-```nu
-# Install
-brew install nushell          # mac
-winget install nushell        # windows
-cargo install nu              # linux
-
-# Launch
-nu
-help
-help commands
-help ls
+**The Old Way:**
+```bash
+# Fragile text parsing
+ps aux | grep chrome | awk '{print $2, $11}' | head -5
 ```
 
-## Files {#files}
-*File operations and content management.*
-
+**The Nushell Way:**
 ```nu
-# List
-ls
-ls -a                         # hidden
-ls **/*                       # recursive
-ls /path/to/dir
-ls | where type == dir        # dirs only
-ls | where type == file       # files only
-ls | where name =~ "\\.txt$"    # by extension
-ls | where size > 1mb         # by size
-ls | where modified > (date now) - 7day  # recent
-
-# Advanced queries
-ls | group-by { $in.name | path parse | get extension }  # count by ext
-ls | group-by size | where {($in | length) > 1}         # duplicates
-ls | each { {name: $in.name, age: ((date now) - $in.modified) / 1day} }  # age
-
-# File operations
-open file.txt
-save output.txt
-cp file.txt backup.txt
-cp -r dir1 dir2              # recursive
-mv old.txt new.txt
-rm file.txt
-rm -rf directory             # recursive delete
-
-# File content
-open file.txt | lines        # as lines
-open file.json               # auto-parse JSON
-open file.csv                # auto-parse CSV
-'hello world' | save file.txt
+# Direct data queries
+ps | where name =~ chrome | select pid name | first 5
 ```
 
-## Dirs {#dirs}
-*Navigate filesystem and manage directories efficiently.*
+When formats change, the old way breaks. Nushell's structured approach adapts automatically.
 
-```nu
-# Navigate
-cd /path                      # absolute path
-cd ~                         # home directory
-cd ..                        # parent directory
-cd -                         # previous directory
-pwd                          # show current path
+### Getting Started
 
-# Create/Remove
-mkdir dir                    # create directory
-mkdir -p deep/nested/path    # create with parents
-rmdir empty-dir              # remove empty directory
-rm -rf dir-with-content      # remove directory tree
+Install Nushell for your platform:
+```bash
+# macOS
+brew install nushell
 
-# Operations
-cp -r src dest               # copy directory
-mv old new                   # rename/move directory
-ls | where type == dir       # list dirs
-ls dir | length              # count items
-ls dir | get size | math sum # directory size
-tree dir                     # show tree structure
+# Windows
+winget install nushell
+
+# Linux
+cargo install nu
 ```
 
-## Data {#data}
-*Query and transform structured data like a database.*
-
-**Core Types**: `int`, `float`, `string`, `bool`, `list`, `record`, `table`, `null`
-
+Launch and explore:
 ```nu
-# Type checking and conversion
-42 | describe                  # "int"
-"42" | into int               # string to int
-'{"x": 1}' | from json        # parse JSON
-"a,b\n1,2" | from csv          # parse CSV
-
-# Core operations
-ps | where name =~ chrome              # filter rows
-ps | select pid name                   # pick columns
-ps | sort-by cpu                       # sort
-ps | reverse                           # reverse order
-ps | first 5                           # first N items
-ps | last 3                            # last N items
-ps | skip 2                            # skip N items
-ps | length                            # count items
-ps | uniq                              # unique values
-ps | group-by name                     # group by column
-
-# Transform data
-ps | each { |row| $row.name | str upcase }    # transform each row
-ps | reduce { |it, acc| $acc + $it.cpu }      # aggregate values
-ps | insert status 'running'                  # add column
-ps | update name { str upcase }               # update column
+nu                    # Start Nushell
+version              # Check your version
+help                 # Browse documentation
+help commands        # See all available commands
 ```
 
-## Text {#text}
-*String processing and text manipulation.*
+### Variables and Assignment
+
+Nushell uses immutable variables by default—a key difference from traditional shells:
 
 ```nu
-# String info
-"hello" | str length                  # character count
-"" | str is-empty                     # check if empty
+# Immutable variables (recommended)
+let name = "Alice"
+let age = 30
+let active = true
 
-# Case conversion
-"Hello" | str downcase                # "hello"
-"hello" | str upcase                  # "HELLO"
-"hello world" | str title-case        # "Hello World"
-"hello world" | str capitalize        # "Hello world"
-
-# Clean up
-"  hello  " | str trim               # remove whitespace
-"...hello..." | str trim -c '.'       # remove specific chars
-"a  b   c" | str replace -r '\\s+' ' '  # normalize whitespace
-
-# Split and join
-"a,b,c" | split row ","              # split by delimiter
-"hello" | split chars                 # split to characters
-"hello world" | split words           # split by whitespace
-"line1\nline2" | lines                # split by newlines
-["a", "b", "c"] | str join ", "       # join with separator
-
-# Search and replace
-"hello world" | str contains "world"  # check if contains
-"hello" | str starts-with "he"       # check prefix
-"world" | str ends-with "ld"          # check suffix
-"hello world" | str replace "world" "nu"  # replace text
-"abc abc" | str replace -a "a" "x"    # replace all
-
-# Pattern matching
-"hello123world" | parse "{text}{digits}{text}"  # structured parsing
-"2023-12-25" | parse "{year}-{month}-{day}"      # date parsing
+# Mutable when needed
+mut counter = 0
+$counter = $counter + 1
 ```
 
-## System {#sys}
-*System information and environment.*
+**Why immutable by default?** It prevents accidental modifications and makes your scripts more reliable. You can still use mutability when you need it.
+
+### Data Types
+
+Nushell has rich, built-in data types that make complex data manipulation simple:
 
 ```nu
-# System info
-sys                                   # full system info
-sys | get host                        # hostname, uptime, users
-sys | get cpu                         # CPU info and usage
-sys | get mem                         # memory usage
-sys | get disks                       # disk usage
-sys | get net                         # network interfaces
-sys | get temp                        # temperatures
+# Basic types
+42                    # int
+3.14159              # float
+"hello world"        # string
+true                 # bool
+null                 # null value
 
-# Environment
-$env                                  # all environment variables
-$env.PATH                            # specific variable
-$env.HOME                            # home directory
-$env.USER                            # current user
+# Collection types
+[1, 2, 3]            # list
+{name: "Bob", age: 25}  # record
 
-# Date and time
-date now                             # current timestamp
-date now | format date "%Y-%m-%d"    # format date
-date now | format date "%H:%M:%S"    # format time
-(date now) + 1day                    # date arithmetic
-(date now) - 1hr                     # subtract time
+# Tables (list of records)
+[
+  {name: "Alice", role: "Engineer"},
+  {name: "Bob", role: "Designer"}
+]
 ```
 
-## Process {#proc}
-*Process management and monitoring.*
+**Key insight:** Every Nushell command returns one of these structured types, not raw text. This is what enables powerful data processing.
+
+### Type Checking and Conversion
+
+Check types and convert between them safely:
 
 ```nu
-# Process info
-ps                                    # all processes
-ps | where name =~ chrome             # filter by name
-ps | where cpu > 10                  # high CPU usage
-ps | where mem > 100MB               # high memory usage
-ps | sort-by cpu | reverse | first 10 # top CPU processes
+# Type inspection
+42 | describe         # "int"
+[1, 2, 3] | describe  # "list<int>"
 
-# Process control
-kill 1234                            # kill process by PID
-kill --force 1234                    # force kill
-killall chrome                       # kill by name
+# Safe conversions
+"42" | into int       # string to integer
+42 | into string      # integer to string
+"true" | into bool    # string to boolean
 
-# Jobs and background
-^long-running-command &              # run in background
-jobs                                 # list background jobs
-fg                                   # bring to foreground
-bg                                   # send to background
-
-# Network
-ss                                   # socket statistics
-ss | where state == LISTEN           # listening ports
-ping google.com                      # ping host
-curl https://api.github.com          # HTTP requests
+# Handle conversion errors
+"not_a_number" | into int  # Error with clear message
 ```
 
-## Math {#math}
-*Mathematical operations and calculations.*
+### Basic Operations
+
+Arithmetic and string operations work intuitively:
 
 ```nu
-# Basic math
-3 + 4                                # addition
-10 - 3                               # subtraction
-6 * 7                                # multiplication
-15 / 3                               # division
-2 ** 8                               # power
-17 mod 5                             # modulo
+# Math
+3 + 4 * 2           # 11 (standard precedence)
+2 ** 8              # 256 (exponentiation)
+17 mod 5            # 2 (modulo)
 
-# Math functions
-[1, 2, 3, 4, 5] | math sum           # sum
-[1, 2, 3, 4, 5] | math avg           # average
-[1, 2, 3, 4, 5] | math min           # minimum
-[1, 2, 3, 4, 5] | math max           # maximum
-[1, 2, 3, 4, 5] | math stddev        # standard deviation
-[1, 2, 3, 4, 5] | math median        # median
-[1, 2, 3, 4, 5] | math product       # product
+# String interpolation
+let name = "World"
+$"Hello, ($name)!"  # "Hello, World!"
 
-# Rounding
-3.14159 | math round                 # 3
-3.14159 | math floor                 # 3
-3.14159 | math ceil                  # 4
-3.14159 | math round --precision 2   # 3.14
-
-# Conversions
-100 | into float                     # 100.0
-"123" | into int                     # 123
+# Comparisons
+$age >= 18          # boolean result
+$name == "Alice"    # exact match
+$text =~ "pattern"  # regex match
 ```
 
-## Filter {#filter}
-*Advanced filtering and data manipulation.*
+### Your First Data Pipeline
+
+Here's where Nushell shines—chaining operations on structured data:
 
 ```nu
-# Where conditions
-ps | where cpu > 50                  # greater than
-ps | where name == "chrome"          # equal
-ps | where name != "chrome"          # not equal
-ps | where name =~ "chro"            # regex match
-ps | where name !~ "chro"            # regex not match
-ps | where name in ["chrome", "firefox"]  # in list
-ps | where name not-in ["chrome", "firefox"]  # not in list
+# Traditional approach (broken across shell boundaries)
+ls | grep .txt | wc -l
+
+# Nushell approach (seamless data flow)
+ls | where name =~ "\.txt$" | length
+```
+
+This pipeline:
+1. `ls` returns a table of file information
+2. `where` filters rows based on conditions
+3. `length` counts the results
+
+**Exercise:** Try counting different file types in your current directory. What happens when you change the pattern?
+
+### Quick Start Examples (From the Cookbook)
+
+```nu
+# Get a random joke (HTTP request)
+(http get https://api.chucknorris.io/jokes/random).value
+
+# Find high CPU processes
+ps | where cpu > 0 | sort-by cpu | reverse
+
+# Parse command output into structured data
+df -h | str replace "Mounted on" Mounted_On | detect columns
+
+# Get file counts by type
+ls | group-by type | transpose type files | each { {type: $in.type, count: ($in.files | length)} }
+
+# Find large files
+ls **/* | where type == file and size > 10mb | sort-by size | reverse
+```
+
+---
+
+## Chapter 2: Working with Structured Data {#chapter-2}
+
+### Understanding Tables
+
+Everything in Nushell flows through pipelines as structured data. The most common structure is a table—a list of records with consistent columns:
+
+```nu
+# See structured output
+ps                   # Process table
+ls                   # File table
+sys                  # System info table
+```
+
+Each command returns data you can immediately filter, sort, and transform without parsing.
+
+### Selecting and Projecting Data
+
+Choose which columns you want to work with:
+
+```nu
+# Pick specific columns
+ps | select pid name cpu
+ls | select name size modified
+
+# Rename columns during selection
+ps | select pid, process_name: name, cpu_usage: cpu
+```
+
+**Best practice:** Select only the columns you need. It makes your data easier to work with and more efficient.
+
+### Filtering Rows
+
+Use `where` to filter rows based on conditions:
+
+```nu
+# Numeric comparisons
+ps | where cpu > 10.0
+ls | where size > 1mb
+
+# String matching
+ps | where name == "chrome"
+ps | where name =~ "fire"    # regex pattern
+ls | where name ends-with ".txt"
 
 # Complex conditions
-ps | where cpu > 50 and mem > 100MB    # AND
-ps | where name == "chrome" or name == "firefox"  # OR
-ps | where not (cpu > 50)               # NOT
-ps | where (cpu > 50) and (mem > 100MB or name =~ "important")  # grouped
-
-# Null handling
-data | where field != null           # exclude nulls
-data | where field == null           # only nulls
-data | default "N/A" field           # replace nulls
-
-# Advanced filtering
-data | find "search term"            # full-text search
-data | find --columns [name, desc] "term"  # specific columns
-data | where $in | str contains "text"     # custom conditions
+ps | where cpu > 5.0 and mem > 100mb
+ls | where (size > 1mb) or (name =~ "important")
 ```
 
-## Import {#import}
-*Data import/export in various formats.*
+### Sorting Data
+
+Order your results meaningfully:
 
 ```nu
-# File formats
-open data.json                       # JSON
-open data.csv                        # CSV
-open data.yaml                       # YAML
-open data.toml                       # TOML
-open data.xml                        # XML
-open data.xlsx                       # Excel
+# Sort by single column
+ls | sort-by size
+ps | sort-by cpu
 
-# Format conversion
-open data.json | to csv              # JSON to CSV
-open data.csv | to json              # CSV to JSON
-open data.yaml | to toml             # YAML to TOML
-{name: "test"} | to json             # record to JSON
-[{a: 1}, {a: 2}] | to csv            # table to CSV
+# Reverse order
+ps | sort-by cpu | reverse
 
-# URLs and APIs
-http get https://api.github.com/users/octocat
-fetch https://jsonplaceholder.typicode.com/posts
-curl -s https://api.example.com/data | from json
-
-# Database-like operations
-open data.csv | query db "SELECT name, age FROM data WHERE age > 25"
+# Multi-column sorting
+ls | sort-by type name
 ```
 
-# Programming
+### Transforming Data
 
-## Variables {#vars}
-*Variable declaration and data types.*
-
-```nu
-# Immutable variables (default)
-let name = "John"                    # string
-let age = 30                         # integer
-let pi = 3.14159                     # float
-let active = true                    # boolean
-let items = [1, 2, 3]               # list
-let person = {name: "Alice", age: 25}  # record
-
-# Mutable variables
-mut counter = 0                      # mutable integer
-$counter = $counter + 1              # update value
-mut list = []                        # mutable list
-$list = ($list | append "new item")  # update list
-
-# Variable scoping
-def example [] {
-  let local_var = "inside function"  # function scope
-  $local_var
-}
-
-# Pattern matching in assignments
-let [first, second, ..rest] = [1, 2, 3, 4, 5]  # destructure list
-let {name, age} = {name: "Bob", age: 35}        # destructure record
-```
-
-## Control {#control}
-*Conditionals, loops, and control flow.*
+Use `each` to transform every row:
 
 ```nu
-# If conditions
-if $age >= 18 { "adult" } else { "minor" }
-if $score > 90 { "A" } else if $score > 80 { "B" } else { "C" }
+# Transform individual values
+ls | each { |file| $file.name | str upcase }
 
-# Match expressions
-match $value {
-  1 => "one",
-  2 | 3 => "two or three",
-  4..10 => "four to ten",
-  _ => "other"
-}
-
-# Loops with each
-[1, 2, 3] | each { |x| $x * 2 }     # transform each item
-1..10 | each { |x| $x ** 2 }        # squares of 1-10
-ls | each { |file| $file.name | str upcase }  # uppercase names
-
-# For loops
-for x in 1..10 { print $x }         # iterate range
-for item in [a, b, c] { print $item }  # iterate list
-for file in (ls) { print $file.name }  # iterate command output
-
-# While loops
-mut x = 0
-while $x < 10 { $x = $x + 1; print $x }
-
-# Loop control
-for x in 1..100 {
-  if $x mod 10 == 0 { continue }    # skip iteration
-  if $x > 50 { break }              # exit loop
-  print $x
+# Create computed columns
+ls | each { |file|
+  {
+    name: $file.name,
+    size_mb: ($file.size / 1mb),
+    is_large: ($file.size > 10mb)
+  }
 }
 ```
 
-## Functions {#funcs}
-*Custom functions and commands.*
+### Grouping and Aggregation
+
+Analyze data by categories:
+
+```nu
+# Group by type
+ls | group-by type
+
+# Count items in each group
+ls | group-by type | transpose type files | each { |group|
+  {type: $group.type, count: ($group.files | length)}
+}
+
+# Aggregate numeric data
+ps | select cpu | math sum    # Total CPU usage
+ls | select size | math avg   # Average file size
+```
+
+### Working with Lists
+
+Lists are ordered collections that can hold any data type:
+
+```nu
+# Create and manipulate lists
+let numbers = [1, 2, 3, 4, 5]
+$numbers | first 3           # [1, 2, 3]
+$numbers | last 2            # [4, 5]
+$numbers | skip 1            # [2, 3, 4, 5]
+
+# Transform lists
+$numbers | each { |n| $n * 2 }        # [2, 4, 6, 8, 10]
+$numbers | where { |n| $n mod 2 == 0 } # [2, 4]
+
+# Combine lists
+[1, 2] | append [3, 4]       # [1, 2, 3, 4]
+[1, 2, 3] | prepend 0        # [0, 1, 2, 3]
+```
+
+### Working with Records
+
+Records are like objects or dictionaries—collections of named values:
+
+```nu
+# Create records
+let person = {name: "Alice", age: 30, active: true}
+
+# Access fields
+$person.name         # "Alice"
+$person | get age    # 30
+
+# Update records (creates new record)
+$person | insert role "Engineer"
+$person | update age 31
+$person | upsert status "active"  # Insert or update
+```
+
+### Practical Example: Log Analysis
+
+Let's analyze some hypothetical web server logs:
+
+```nu
+# Parse log entries (imagine this data comes from a file)
+let logs = [
+  {timestamp: "2024-01-15 10:30:00", method: "GET", path: "/api/users", status: 200, size: 1024},
+  {timestamp: "2024-01-15 10:31:00", method: "POST", path: "/api/login", status: 401, size: 256},
+  {timestamp: "2024-01-15 10:32:00", method: "GET", path: "/api/users", status: 200, size: 2048}
+]
+
+# Find error responses
+$logs | where status >= 400
+
+# Analyze traffic by endpoint
+$logs | group-by path | transpose endpoint requests | each { |group|
+  {
+    endpoint: $group.endpoint,
+    requests: ($group.requests | length),
+    avg_size: ($group.requests | select size | math avg)
+  }
+}
+```
+
+### Cookbook Recipe: Analyzing Directory Structure
+
+```nu
+# Complete directory analysis
+def analyze_directory [path: string = "."] {
+  let files = ls $path | where type == file
+  let dirs = ls $path | where type == dir
+
+  {
+    summary: {
+      total_files: ($files | length),
+      total_dirs: ($dirs | length),
+      total_size: ($files | get size | math sum),
+      avg_file_size: ($files | get size | math avg)
+    },
+    by_extension: (
+      $files | group-by { $in.name | path parse | get extension } |
+      transpose ext files | each { {extension: $in.ext, count: ($in.files | length), total_size: ($in.files | get size | math sum)} } |
+      sort-by count | reverse
+    ),
+    largest_files: ($files | sort-by size | reverse | first 5 | select name size)
+  }
+}
+
+# Usage: analyze_directory ~/Documents
+```
+
+**Exercise:** Create a small dataset representing books (title, author, year, pages) and practice filtering, sorting, and grouping operations.
+
+---
+
+## Chapter 3: Control Flow and Functions {#chapter-3}
+
+### Conditional Expressions
+
+Nushell uses expressions for conditionals, making them composable:
+
+```nu
+# Simple if-else
+let status = if $age >= 18 { "adult" } else { "minor" }
+
+# Chained conditions
+let grade = if $score >= 90 {
+  "A"
+} else if $score >= 80 {
+  "B"
+} else if $score >= 70 {
+  "C"
+} else {
+  "F"
+}
+
+# Conditions in pipelines
+ls | each { |file|
+  if $file.size > 1mb {
+    $file | insert category "large"
+  } else {
+    $file | insert category "small"
+  }
+}
+```
+
+### Pattern Matching with Match
+
+For complex branching, `match` is more elegant than chained if-else:
+
+```nu
+# Match specific values
+let response = match $status_code {
+  200 => "OK",
+  404 => "Not Found",
+  500 => "Server Error",
+  _ => "Unknown"
+}
+
+# Match ranges and patterns
+let category = match $score {
+  90..100 => "Excellent",
+  80..89 => "Good",
+  70..79 => "Fair",
+  _ => "Needs Improvement"
+}
+
+# Match multiple conditions
+match $file.type {
+  "file" if $file.size > 1gb => "large file",
+  "file" => "regular file",
+  "dir" => "directory",
+  _ => "unknown"
+}
+```
+
+### Loops and Iteration
+
+Nushell prefers functional iteration over traditional loops:
+
+```nu
+# Transform each item (preferred)
+[1, 2, 3, 4, 5] | each { |n| $n * 2 }
+
+# Traditional for loop (when needed)
+for i in 1..10 {
+  print $"Processing item ($i)"
+}
+
+# While loops for state-dependent iteration
+mut count = 0
+while $count < 5 {
+  print $"Count: ($count)"
+  $count = $count + 1
+}
+
+# Loop with break and continue
+for file in (ls) {
+  if $file.type == "dir" { continue }
+  if $file.size > 100mb { break }
+  print $file.name
+}
+```
+
+**Best practice:** Use `each`, `where`, `reduce` and other functional operations instead of explicit loops when possible. They're more concise and often more efficient.
+
+### Defining Functions
+
+Create reusable code with custom functions:
 
 ```nu
 # Simple function
@@ -388,172 +475,2097 @@ def greet [name: string] {
   $"Hello, ($name)!"
 }
 
-# Function with multiple parameters
-def add [x: int, y: int] {
-  $x + $y
+greet "World"  # "Hello, World!"
+
+# Function with multiple parameters and types
+def calculate_area [length: float, width: float] {
+  $length * $width
 }
 
 # Optional parameters with defaults
-def greet_with_title [name: string, title: string = "Mr/Ms"] {
-  $"Hello, ($title) ($name)!"
-}
-
-# Functions with flags
-def process [
-  input: string,
-  --verbose (-v),          # boolean flag
-  --output (-o): string,   # flag with value
-  --count (-c): int = 1    # flag with default
-] {
-  if $verbose { print $"Processing ($input)" }
-  # ... function logic
-}
-
-# Return types
-def get_user_info []: record<name: string, age: int> {
-  {name: "Alice", age: 30}
-}
-
-# Closures
-let double = { |x| $x * 2 }
-[1, 2, 3] | each $double
-
-# Pipeline functions
-def filter_large_files [] {
-  where size > 1MB
-}
-ls | filter_large_files
-```
-
-## Errors {#errors}
-*Error handling and debugging.*
-
-```nu
-# Try-catch blocks
-try {
-  open non_existent_file.txt
-} catch { |err|
-  print $"Error: ($err.msg)"
-  "default content"
-}
-
-# Error propagation
-def safe_divide [x: float, y: float] {
-  if $y == 0 {
-    error make {msg: "Division by zero"}
-  }
-  $x / $y
-}
-
-# Default values for errors
-let content = try { open file.txt } catch { "default content" }
-let value = ($data | get field | default "N/A")
-
-# Debugging
-debug $variable                      # inspect variable
-print $"Debug: value is ($variable)" # debug prints
-$variable | describe                 # type information
-
-# Assertions
-assert ($x > 0) "x must be positive"
-assert length $list > 0 "list cannot be empty"
-```
-
-## External {#ext}
-*Working with external commands and tools.*
-
-```nu
-# Run external commands
-^ls -la                              # explicit external
-git status                           # implicit external
-python script.py                     # run scripts
-make build                           # build tools
-
-# Capture output
-let result = ^git status --porcelain
-let files = ^find . -name "*.txt" | lines
-
-# Pass data to external commands
-ls | get name | ^head -5             # pipe to external
-"hello world" | ^wc -w               # count words
-
-# Environment for external commands
-with-env {RUST_LOG: "debug"} { cargo test }
-$env.PATH = ($env.PATH | append "/usr/local/bin")
-
-# Command substitution
-let current_branch = ^git branch --show-current
-cd (^pwd)                            # command in expression
-
-# Handle external errors
-try {
-  ^command_that_might_fail
-} catch { |err|
-  print $"Command failed: ($err.msg)"
-}
-```
-
-## Advanced {#adv}
-*Advanced patterns and techniques.*
-
-```nu
-# Closures and higher-order functions
-let filter_fn = { |x| $x mod 2 == 0 }
-[1, 2, 3, 4, 5] | where $filter_fn   # even numbers
-
-let transform = { |x| {value: $x, double: ($x * 2)} }
-[1, 2, 3] | each $transform
-
-# Partial application
-def multiply [x: int, y: int] { $x * $y }
-let double = { |n| multiply $n 2 }
-[1, 2, 3] | each $double
-
-# Custom completions
-def my_command [
-  file: string@complete_files,       # file completion
-  --format: string@complete_formats  # custom completion
-] {
-  # command implementation
-}
-
-def complete_files [context: string, position: int]: list<string> {
-  ls | get name
-}
-
-# Generators and infinite sequences
-def fibonacci [] {
-  mut a = 0
-  mut b = 1
-  loop {
-    yield $a
-    let temp = $a + $b
-    $a = $b
-    $b = $temp
+def greet_formal [name: string, title: string = ""] {
+  if ($title | is-empty) {
+    $"Hello, ($name)"
+  } else {
+    $"Hello, ($title) ($name)"
   }
 }
 
-# Module system
-export def public_function [] {
-  "This is public"
-}
-
-def private_function [] {
-  "This is private"
-}
-
-# Advanced pipeline patterns
-ls
-| where type == file
-| each { |file|
-    let stats = ^stat $file.name | from ssv
-    $file | insert permissions $stats.permissions
-}
-| where permissions =~ "r--"
-| sort-by modified
-| reverse
+greet_formal "Alice"              # "Hello, Alice"
+greet_formal "Smith" "Dr."        # "Hello, Dr. Smith"
 ```
+
+### Functions with Flags
+
+Add command-line style options to your functions:
+
+```nu
+def search_files [
+  pattern: string,           # Required parameter
+  --case-sensitive,          # Boolean flag
+  --extension (-e): string,  # Flag with value
+  --max-results (-n): int = 10  # Flag with default
+] {
+  let files = if ($extension | is-empty) {
+    ls
+  } else {
+    ls | where name ends-with $extension
+  }
+
+  let filtered = if $case_sensitive {
+    $files | where name =~ $pattern
+  } else {
+    $files | where name =~ ("(?i)" + $pattern)
+  }
+
+  $filtered | first $max_results
+}
+
+# Usage examples
+search_files "test"                    # Basic search
+search_files "Test" --case-sensitive   # Case sensitive
+search_files "config" -e ".json" -n 5 # With extension and limit
+```
+
+### Pipeline Functions
+
+Create functions that work naturally in pipelines:
+
+```nu
+# Input from pipeline
+def format_size [] {
+  each { |file|
+    $file | insert size_mb ($file.size / 1mb | math round --precision 2)
+  }
+}
+
+# Use in pipeline
+ls | format_size | select name size_mb
+
+# Filter function
+def large_files [min_size: filesize = 1mb] {
+  where size >= $min_size
+}
+
+ls | large_files 10mb | select name size
+```
+
+### Error Handling in Functions
+
+Handle errors gracefully:
+
+```nu
+def safe_divide [dividend: float, divisor: float] {
+  if $divisor == 0 {
+    error make { msg: "Cannot divide by zero" }
+  }
+  $dividend / $divisor
+}
+
+def read_config [path: string] {
+  try {
+    open $path | from json
+  } catch { |err|
+    print $"Warning: Could not read config from ($path): ($err.msg)"
+    {}  # Return empty record as fallback
+  }
+}
+```
+
+### Practical Example: File Organization
+
+Let's build a function that organizes files by extension:
+
+```nu
+def organize_files [target_dir: string = "."] {
+  let files = ls $target_dir | where type == "file"
+
+  $files | group-by { |file|
+    $file.name | path parse | get extension
+  } | transpose extension files | each { |group|
+    let ext = if ($group.extension | is-empty) { "no_extension" } else { $group.extension }
+    let dir_name = $"($target_dir)/($ext)_files"
+
+    print $"Creating directory: ($dir_name)"
+    mkdir $dir_name
+
+    $group.files | each { |file|
+      print $"Moving ($file.name) to ($dir_name)/"
+      mv $file.name $dir_name
+    }
+
+    {extension: $ext, count: ($group.files | length)}
+  }
+}
+
+# Usage
+organize_files "~/Downloads"
+```
+
+### Cookbook Recipe: System Monitoring Dashboard
+
+```nu
+# Create a system monitoring function
+def system_monitor [] {
+  print "=== System Monitor ==="
+
+  # Memory usage
+  let memory = sys | get mem
+  let mem_percent = ($memory.used / $memory.total * 100 | math round)
+  print $"Memory: ($mem_percent)% used (($memory.used | into string) / ($memory.total | into string))"
+
+  # CPU intensive processes
+  print "\nTop CPU processes:"
+  ps | sort-by cpu | reverse | first 5 | each { |proc|
+    $"  ($proc.name): ($proc.cpu)%"
+  }
+
+  # Memory intensive processes
+  print "\nTop Memory processes:"
+  ps | sort-by mem | reverse | first 5 | each { |proc|
+    $"  ($proc.name): ($proc.mem)"
+  }
+
+  # Disk usage
+  print "\nDisk usage:"
+  sys | get disks | each { |disk|
+    let usage = ($disk.used / $disk.total * 100 | math round)
+    $"  ($disk.mount): ($usage)% used"
+  }
+}
+```
+
+**Exercise:** Create a function that analyzes disk usage by directory and reports the top space consumers.
 
 ---
 
-*Nushell combines the power of traditional Unix tools with modern language features. Master these commands and patterns to become highly productive with structured data processing.*
+## Chapter 4: File System and I/O Operations {#chapter-4}
+
+### Navigation and Directory Operations
+
+Nushell provides familiar navigation with structured enhancements:
+
+```nu
+# Basic navigation
+cd ~/Documents      # Change directory
+pwd                 # Current directory
+ls                  # List with rich information
+ls -la              # Include hidden files
+
+# Directory operations
+mkdir new_project
+mkdir -p deep/nested/structure  # Create parent directories
+rmdir empty_directory
+rm -rf directory_with_content   # Recursive removal
+```
+
+**Key difference:** Unlike traditional shells, `ls` returns structured data you can immediately query:
+
+```nu
+# Traditional shell workflow
+ls -la | grep ".txt" | wc -l
+
+# Nushell workflow
+ls | where name ends-with ".txt" | length
+```
+
+### File Operations
+
+Handle files with clear, safe operations:
+
+```nu
+# Copy and move
+cp source.txt backup.txt
+cp -r source_dir backup_dir
+mv old_name.txt new_name.txt
+
+# Safe removal with confirmation
+rm important_file.txt
+rm -i *.txt          # Interactive removal
+
+# File information
+ls | where name == "myfile.txt" | first
+stat myfile.txt      # Detailed file stats
+```
+
+### Reading and Writing Files
+
+Nushell automatically handles common file formats:
+
+```nu
+# Text files
+open readme.txt                    # Read as string
+open readme.txt | lines           # Read as list of lines
+"Hello, World!" | save greeting.txt
+
+# Structured data (automatic parsing)
+open config.json                  # Automatically parsed JSON
+open data.csv                     # Automatically parsed CSV
+open settings.yaml                # Automatically parsed YAML
+
+# Save structured data
+{name: "Alice", age: 30} | save person.json
+[{a: 1}, {a: 2}] | save data.csv
+```
+
+**Power feature:** Nushell recognizes file extensions and automatically parses/formats data. No more manual `jq` or CSV parsing!
+
+### Working with Different Data Formats
+
+Convert between formats effortlessly:
+
+```nu
+# Format conversion
+open data.json | to yaml | save data.yaml
+open data.csv | to json | save data.json
+open config.toml | to nuon | save config.nuon
+
+# Handle format errors gracefully
+try {
+  open potentially_invalid.json
+} catch { |err|
+  print $"JSON parsing failed: ($err.msg)"
+  {}  # Return empty record
+}
+```
+
+### File Content Analysis
+
+Analyze file contents with structured approaches:
+
+```nu
+# Analyze text files
+open large_text.txt | lines | length           # Count lines
+open log.txt | lines | where $it =~ "ERROR"   # Find error lines
+open data.txt | lines | each { str length } | math avg  # Average line length
+
+# Analyze structured data
+open sales.json | length                       # Count records
+open sales.json | get price | math sum        # Sum prices
+open users.csv | group-by role | transpose role users |
+  each { {role: $in.role, count: ($in.users | length)} }
+```
+
+### Directory Analysis
+
+Get insights about directory structures:
+
+```nu
+# Size analysis
+ls | select name size | sort-by size | reverse
+ls **/* | where type == "file" | get size | math sum  # Total size recursively
+
+# File type distribution
+ls **/* | where type == "file" |
+  each { |file| $file.name | path parse | get extension } |
+  group-by { $in } | transpose ext files |
+  each { {extension: $in.ext, count: ($in.files | length)} } |
+  sort-by count | reverse
+
+# Find large files
+ls **/* | where type == "file" and size > 100mb |
+  select name size | sort-by size | reverse
+```
+
+### Batch File Operations
+
+Process multiple files efficiently:
+
+```nu
+# Process all JSON files
+ls | where name ends-with ".json" | each { |file|
+  let data = open $file.name
+  # Process data here
+  $data | save $"processed_($file.name)"
+}
+
+# Rename files based on pattern
+ls | where name starts-with "temp_" | each { |file|
+  let new_name = $file.name | str replace "temp_" "final_"
+  mv $file.name $new_name
+}
+
+# Convert file encodings or formats
+ls | where name ends-with ".csv" | each { |file|
+  open $file.name | to json | save ($file.name | str replace ".csv" ".json")
+}
+```
+
+### File Watching and Monitoring
+
+Monitor file system changes:
+
+```nu
+# Watch directory for changes (if available)
+watch . { |op, path, new_path|
+  match $op {
+    "Create" => print $"Created: ($path)",
+    "Write" => print $"Modified: ($path)",
+    "Remove" => print $"Deleted: ($path)",
+    _ => print $"Other operation on ($path)"
+  }
+}
+```
+
+### Practical Example: Log File Analysis
+
+Analyze web server logs:
+
+```nu
+def analyze_logs [log_file: string] {
+  let logs = open $log_file | lines |
+    where $it !~ "^#" |  # Skip comments
+    each { |line|
+      # Parse common log format: IP - - [timestamp] "method path protocol" status size
+      let parts = $line | parse '{ip} - - [{timestamp}] "{method} {path} {protocol}" {status} {size}'
+      if ($parts | length) > 0 { $parts | first } else { null }
+    } |
+    where $it != null
+
+  print $"Total requests: ($logs | length)"
+
+  print "\nTop 10 IP addresses:"
+  $logs | group-by ip | transpose ip requests |
+    each { {ip: $in.ip, count: ($in.requests | length)} } |
+    sort-by count | reverse | first 10
+
+  print "\nStatus code distribution:"
+  $logs | group-by status | transpose status requests |
+    each { {status: $in.status, count: ($in.requests | length)} } |
+    sort-by status
+
+  print "\nMost requested paths:"
+  $logs | group-by path | transpose path requests |
+    each { {path: $in.path, count: ($in.requests | length)} } |
+    sort-by count | reverse | first 10
+}
+
+# Usage
+analyze_logs "access.log"
+```
+
+### Cookbook Recipe: File Processing Pipeline
+
+```nu
+# Process multiple files with error handling
+def process_files [pattern: string, action: closure] {
+  ls | where name =~ $pattern | each { |file|
+    try {
+      let result = do $action $file
+      {file: $file.name, status: "success", result: $result}
+    } catch { |err|
+      {file: $file.name, status: "error", error: $err.msg}
+    }
+  }
+}
+
+# Usage examples:
+# process_files "\.txt$" { |file| open $file.name | lines | length }  # Count lines in text files
+# process_files "\.json$" { |file| open $file.name | length }          # Count records in JSON files
+```
+
+**Exercise:** Create a function that organizes photos by date taken (using file modification time) into year/month directory structure.
+
+---
+
+## Chapter 5: Text Processing and Pattern Matching {#chapter-5}
+
+### String Manipulation Basics
+
+Nushell provides comprehensive string operations that feel natural:
+
+```nu
+# Basic string info
+"hello world" | str length              # 11
+"" | str is-empty                       # true
+"   spaces   " | str trim               # "spaces"
+
+# Case conversion
+"Hello World" | str downcase            # "hello world"
+"hello world" | str upcase              # "HELLO WORLD"
+"hello world" | str title-case          # "Hello World"
+"hello world" | str capitalize          # "Hello world"
+```
+
+### String Splitting and Joining
+
+Break strings apart and recombine them:
+
+```nu
+# Split by delimiter
+"apple,banana,cherry" | split row ","   # ["apple", "banana", "cherry"]
+"one:two:three" | split row ":"         # ["one", "two", "three"]
+
+# Split into characters
+"hello" | split chars                   # ["h", "e", "l", "l", "o"]
+
+# Split by whitespace
+"hello   world   test" | split words    # ["hello", "world", "test"]
+
+# Split lines
+"line1\nline2\nline3" | lines          # ["line1", "line2", "line3"]
+
+# Join strings
+["hello", "world"] | str join " "       # "hello world"
+["a", "b", "c"] | str join ", "         # "a, b, c"
+```
+
+### Pattern Matching and Regular Expressions
+
+Find and match text patterns:
+
+```nu
+# Simple matching
+"hello world" | str contains "world"    # true
+"hello world" | str starts-with "hello" # true
+"hello world" | str ends-with "world"   # true
+
+# Regular expressions
+"hello123world" | str match '\d+'       # "123"
+"email@domain.com" | str match '[\w\.]+@[\w\.]+\.\w+' # Full email
+
+# Find all matches
+"abc 123 def 456" | str match --all '\d+' # ["123", "456"]
+
+# Test patterns
+"test123" | str match '\w+\d+' != null  # true (matches pattern)
+```
+
+### String Replacement
+
+Replace text with precision:
+
+```nu
+# Simple replacement
+"hello world" | str replace "world" "Nushell"     # "hello Nushell"
+"hello world world" | str replace --all "world" "nu" # "hello nu nu"
+
+# Regular expression replacement
+"price: $19.99" | str replace '\$(\d+\.\d+)' 'USD $1' # "price: USD 19.99"
+
+# Multiple replacements
+"hello world" | str replace "hello" "hi" | str replace "world" "there"
+```
+
+### Advanced Text Parsing
+
+Extract structured data from text:
+
+```nu
+# Parse structured patterns
+"John Doe, 30 years old" | parse "{name}, {age} years old"
+# Result: [{name: "John Doe", age: "30"}]
+
+# Parse log entries
+"2024-01-15 ERROR Failed to connect" | parse "{date} {level} {message}"
+
+# Parse multiple patterns
+"Server started on port 8080" | parse "Server {action} on port {port}"
+"Connection from 192.168.1.100" | parse "Connection from {ip}"
+
+# Handle optional fields
+"User: alice (admin)" | parse "User: {name} ({role})"
+"User: bob" | parse "User: {name} ({role}?)"  # Role is optional
+```
+
+### Working with CSV and Structured Text
+
+Parse common text formats:
+
+```nu
+# CSV parsing (automatic with .csv files)
+"name,age,city\nAlice,30,NYC\nBob,25,LA" | from csv
+
+# TSV (tab-separated)
+"name\tage\tcity\nAlice\t30\tNYC" | from tsv
+
+# Custom delimiter
+"name|age|city\nAlice|30|NYC" | split row "\n" |
+  each { split row "|" } |
+  skip 1 | each { |row| {name: ($row | get 0), age: ($row | get 1), city: ($row | get 2)} }
+```
+
+### Text Formatting and Templates
+
+Generate formatted text output:
+
+```nu
+# String interpolation
+let name = "Alice"
+let age = 30
+$"Hello, my name is ($name) and I'm ($age) years old."
+
+# Multi-line formatting
+let report = $"
+Report Summary:
+--------------
+Name: ($name)
+Age: ($age)
+Status: Active
+"
+
+# Format numbers
+let price = 19.99
+$"Price: $($price | into string)"
+
+# Format dates
+let now = date now
+$"Current time: ($now | format date '%Y-%m-%d %H:%M:%S')"
+```
+
+### Text Analysis
+
+Analyze text content statistically:
+
+```nu
+# Word frequency analysis
+def word_frequency [text: string] {
+  $text | str downcase | split words |
+    group-by { $in } | transpose word occurrences |
+    each { {word: $in.word, count: ($in.occurrences | length)} } |
+    sort-by count | reverse
+}
+
+# Usage
+open document.txt | word_frequency | first 10
+
+# Character analysis
+def analyze_text [text: string] {
+  let chars = $text | split chars
+  {
+    total_chars: ($chars | length),
+    letters: ($chars | where $it =~ '[a-zA-Z]' | length),
+    digits: ($chars | where $it =~ '\d' | length),
+    whitespace: ($chars | where $it =~ '\s' | length)
+  }
+}
+```
+
+### Practical Example: Log Processing
+
+Process and analyze application logs:
+
+```nu
+def process_application_logs [log_file: string] {
+  let entries = open $log_file | lines |
+    where $it !~ '^$' |  # Skip empty lines
+    each { |line|
+      # Parse: [2024-01-15 10:30:00] INFO: User login successful for alice@company.com
+      let parsed = $line | parse '[{timestamp}] {level}: {message}'
+      if ($parsed | length) > 0 {
+        $parsed | first
+      } else {
+        null
+      }
+    } |
+    where $it != null
+
+  print $"Processed ($entries | length) log entries\n"
+
+  # Error analysis
+  let errors = $entries | where level == "ERROR"
+  print $"Errors found: ($errors | length)"
+  if ($errors | length) > 0 {
+    print "Most common errors:"
+    $errors | group-by message | transpose error entries |
+      each { {error: $in.error, count: ($in.entries | length)} } |
+      sort-by count | reverse | first 5
+  }
+
+  # Timeline analysis
+  print "\nActivity by hour:"
+  $entries | each { |entry|
+    let hour = $entry.timestamp | str replace ' .*' '' | split row ' ' | get 1 | split row ':' | get 0
+    {hour: $hour, entry: $entry}
+  } | group-by hour | transpose hour entries |
+    each { {hour: $in.hour, count: ($in.entries | length)} } |
+    sort-by hour
+}
+
+# Usage
+process_application_logs "app.log"
+```
+
+### Regular Expression Reference
+
+Common patterns for Nushell text processing:
+
+```nu
+# Email validation
+let email_pattern = '[\w\.-]+@[\w\.-]+\.\w+'
+"user@example.com" | str match $email_pattern
+
+# Phone number extraction
+let phone_pattern = '\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})'
+"Call me at (555) 123-4567" | str match $phone_pattern
+
+# URL extraction
+let url_pattern = 'https?://[\w\.-]+\.\w+[\w\./\?&=%]*'
+"Visit https://nushell.sh for more info" | str match $url_pattern
+
+# IP address validation
+let ip_pattern = '(\d{1,3}\.){3}\d{1,3}'
+"Server at 192.168.1.100 is online" | str match $ip_pattern
+```
+
+### Cookbook Recipe: Text Processing Toolkit
+
+```nu
+# Parse log files with custom patterns
+def parse_logs [log_file: string, pattern: string] {
+  open $log_file | lines | each { |line|
+    try {
+      $line | parse $pattern | first
+    } catch {
+      null
+    }
+  } | where $it != null
+}
+
+# Extract emails from text
+def extract_emails [text: string] {
+  $text | find --regex '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' | get match
+}
+
+# Clean and format phone numbers
+def format_phone [phone: string] {
+  let digits = $phone | str replace --all '[^0-9]' ''
+  let clean = $digits | str replace '^1' ''
+
+  if ($clean | str length) == 10 {
+    $"(($clean | str substring 0..3)) ($clean | str substring 3..6)-($clean | str substring 6..10)"
+  } else {
+    $"Invalid: ($phone)"
+  }
+}
+
+# Usage:
+# format_phone "555-123-4567"     # "(555) 123-4567"
+# format_phone "15551234567"      # "(555) 123-4567"
+```
+
+**Exercise:** Create a function that validates and formats phone numbers from various input formats into a standard format.
+
+---
+
+## Chapter 6: System Integration {#chapter-6}
+
+### Running External Commands
+
+Nushell seamlessly integrates with existing command-line tools:
+
+```nu
+# Explicit external commands (recommended)
+^ls -la                    # Run system ls
+^git status                # Run git
+^python script.py          # Run Python script
+
+# Implicit external (when no Nushell command exists)
+git status                 # Works if git is in PATH
+docker ps                  # Run Docker commands
+curl "https://api.github.com/users/octocat"
+```
+
+**Best practice:** Use `^` prefix for external commands to be explicit and avoid conflicts with Nushell built-ins.
+
+### Capturing and Processing External Output
+
+Transform external command output into structured data:
+
+```nu
+# Capture as string
+let git_output = ^git log --oneline -5
+
+# Process line by line
+^git log --oneline -5 | lines | each { |line|
+  let parts = $line | split row ' '
+  {hash: ($parts | first), message: ($parts | skip 1 | str join ' ')}
+}
+
+# Parse structured output
+^docker ps --format "{{.ID}}\t{{.Image}}\t{{.Status}}" |
+  lines | each { |line|
+    let parts = $line | split row '\t'
+    {id: ($parts | get 0), image: ($parts | get 1), status: ($parts | get 2)}
+  }
+```
+
+### Environment Variables
+
+Manage environment variables efficiently:
+
+```nu
+# View environment
+$env                        # All environment variables
+$env.PATH                   # Specific variable
+$env.HOME                   # Home directory
+
+# Set environment variables
+$env.MY_VAR = "hello"
+$env.PATH = ($env.PATH | append "/usr/local/bin")
+
+# Temporary environment for command
+with-env {DEBUG: "true"} {
+  ^my-app --verbose
+}
+
+# Environment for external commands
+$env.RUST_LOG = "debug"
+^cargo test
+```
+
+### Process Management
+
+Monitor and control processes:
+
+```nu
+# View processes as structured data
+ps                          # All processes
+ps | where name =~ "chrome" # Filter processes
+ps | sort-by cpu | reverse  # Sort by CPU usage
+
+# Process details
+ps | where pid == 1234 | first
+ps | select pid name cpu mem | first 10
+
+# Kill processes safely
+ps | where name == "runaway_app" | get pid | each { |p| kill $p }
+
+# Background job management
+^long-running-task &        # Run in background
+jobs                        # List background jobs
+```
+
+### File System Monitoring
+
+Watch for file system changes:
+
+```nu
+# Monitor directory changes (if supported)
+def watch_directory [path: string] {
+  print $"Watching ($path) for changes..."
+  # This would use system-specific file watching
+  ^inotifywait -m -e create,delete,modify $path | lines | each { |event|
+    let parts = $event | split row ' '
+    {
+      path: ($parts | get 0),
+      events: ($parts | get 1),
+      filename: ($parts | get 2)
+    }
+  }
+}
+```
+
+### Network Operations
+
+Handle network requests and data:
+
+```nu
+# HTTP requests with structured output
+http get "https://api.github.com/users/octocat"
+http post "https://httpbin.org/post" {name: "test", value: 42}
+
+# Download files
+http get "https://example.com/data.json" | save local_data.json
+
+# Check connectivity
+^ping -c 4 google.com | lines | where $it =~ "time=" | length
+```
+
+### System Information
+
+Get comprehensive system details:
+
+```nu
+# System overview
+sys                         # Complete system info
+sys | get host             # Host information
+sys | get cpu              # CPU details
+sys | get mem              # Memory usage
+sys | get disks            # Disk information
+
+# Current user and session
+whoami                      # Current user
+^id                        # User ID details
+$env.USER                  # User from environment
+```
+
+### Date and Time Operations
+
+Handle dates and time calculations:
+
+```nu
+# Current time
+date now                    # Current timestamp
+date now | format date "%Y-%m-%d %H:%M:%S"
+
+# Date arithmetic
+(date now) + 1day          # Tomorrow
+(date now) - 1week         # Week ago
+(date now) + 2hr           # Two hours from now
+
+# Parse dates
+"2024-01-15" | into datetime
+"Jan 15, 2024" | into datetime
+
+# Date comparisons in data
+ls | where modified > ((date now) - 1day)  # Files from last day
+```
+
+### Practical Example: System Health Monitor
+
+Create a comprehensive system monitoring script:
+
+```nu
+def system_health_check [] {
+  print "=== System Health Check ==="
+  print $"Timestamp: (date now | format date '%Y-%m-%d %H:%M:%S')"
+
+  # CPU and Memory
+  let system_info = sys
+  let cpu_usage = $system_info | get cpu | get cpu_usage
+  let memory = $system_info | get mem
+  let memory_usage = ($memory.used / $memory.total * 100 | math round)
+
+  print $"\nCPU Usage: ($cpu_usage)%"
+  print $"Memory Usage: ($memory_usage)% (($memory.used | into string) / ($memory.total | into string))"
+
+  # Disk Usage
+  print "\nDisk Usage:"
+  $system_info | get disks | each { |disk|
+    let usage = ($disk.used / $disk.total * 100 | math round)
+    $"  ($disk.mount): ($usage)% used (($disk.free | into string) free)"
+  }
+
+  # High CPU processes
+  print "\nTop 5 CPU processes:"
+  ps | sort-by cpu | reverse | first 5 | select name pid cpu | each { |proc|
+    $"  ($proc.name) (PID: ($proc.pid)): ($proc.cpu)%"
+  }
+
+  # High memory processes
+  print "\nTop 5 Memory processes:"
+  ps | sort-by mem | reverse | first 5 | select name pid mem | each { |proc|
+    $"  ($proc.name) (PID: ($proc.pid)): ($proc.mem)"
+  }
+
+  # Network connectivity
+  print "\nNetwork Check:"
+  try {
+    ^ping -c 1 8.8.8.8 | lines | where $it =~ "1 received"
+    if ($in | length) > 0 {
+      print "  ✓ Internet connectivity OK"
+    } else {
+      print "  ✗ Internet connectivity issues"
+    }
+  } catch {
+    print "  ✗ Cannot check internet connectivity"
+  }
+
+  # Load average (Unix-like systems)
+  try {
+    let uptime = ^uptime | lines | first
+    print $"\nLoad Average: ($uptime | str match 'load average: (.*)' | first)"
+  } catch {
+    print "\nLoad average not available"
+  }
+}
+
+# Usage
+system_health_check
+```
+
+### Integration Patterns
+
+Common patterns for integrating external tools:
+
+```nu
+# Transform external JSON output
+^kubectl get pods -o json | from json | get items | each { |pod|
+  {
+    name: $pod.metadata.name,
+    status: $pod.status.phase,
+    ready: $pod.status.conditions | where type == "Ready" | first | get status
+  }
+}
+
+# Process CSV from external tools
+^aws ec2 describe-instances --output table |
+  lines | skip 3 | each { |line|
+    # Parse AWS CLI table output
+    $line | split row '|' | each { str trim }
+  }
+
+# Chain external commands with Nushell processing
+^find /var/log -name "*.log" -mtime -1 | lines | each { |file|
+  {
+    file: $file,
+    size: (^stat -c %s $file | into int),
+    lines: (^wc -l $file | split row ' ' | first | into int)
+  }
+} | sort-by size | reverse
+```
+
+### Cookbook Recipe: External Command Integration
+
+```nu
+# Git repository analysis
+def git_stats [] {
+  {
+    branch: (^git branch --show-current),
+    commits_today: (^git log --since="midnight" --oneline | lines | length),
+    total_commits: (^git rev-list --all --count | into int),
+    contributors: (^git log --format="%an" | lines | uniq | length),
+    file_changes: (^git diff --stat | lines | length)
+  }
+}
+
+# Docker container monitoring
+def docker_monitor [] {
+  ^docker ps --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}" |
+  lines | each { |line|
+    let parts = $line | split row '\t'
+    {
+      id: ($parts | get 0),
+      image: ($parts | get 1),
+      status: ($parts | get 2),
+      name: ($parts | get 3)
+    }
+  }
+}
+
+# System service monitoring
+def service_health [] {
+  # Check critical services
+  ["nginx", "postgresql", "redis"] | each { |service|
+    let status = try { ^systemctl is-active $service } catch { "unknown" }
+    {service: $service, status: $status}
+  }
+}
+```
+
+**Exercise:** Create a function that monitors a web service by periodically checking its health endpoint and logging response times and status codes.
+
+---
+
+## Chapter 7: Advanced Data Processing {#chapter-7}
+
+### Complex Data Transformations
+
+Nushell excels at transforming data through composition of simple operations:
+
+```nu
+# Pivot tables
+ls | group-by type | transpose type files | each { |group|
+  {
+    type: $group.type,
+    count: ($group.files | length),
+    total_size: ($group.files | get size | math sum),
+    avg_size: ($group.files | get size | math avg)
+  }
+}
+
+# Data enrichment
+ps | each { |process|
+  $process | insert cpu_category (
+    if $process.cpu > 50 { "high" }
+    else if $process.cpu > 10 { "medium" }
+    else { "low" }
+  )
+} | group-by cpu_category
+```
+
+### Reduce and Accumulation
+
+Use `reduce` for complex aggregations:
+
+```nu
+# Calculate running totals
+[1, 2, 3, 4, 5] | reduce -f [] { |item, acc|
+  $acc | append ($acc | math sum + $item)
+}
+
+# Build complex data structures
+["apple", "banana", "cherry"] | reduce -f {} { |item, acc|
+  $acc | insert $item ($item | str length)
+}
+
+# Find max/min with additional context
+ls | reduce -f {name: "", size: 0} { |file, largest|
+  if $file.size > $largest.size {
+    {name: $file.name, size: $file.size}
+  } else {
+    $largest
+  }
+}
+```
+
+### Working with Nested Data
+
+Handle complex nested structures effectively:
+
+```nu
+# Access nested fields
+let data = {
+  users: [
+    {name: "Alice", profile: {age: 30, city: "NYC"}},
+    {name: "Bob", profile: {age: 25, city: "LA"}}
+  ]
+}
+
+$data | get users | select name profile.age profile.city
+
+# Flatten nested structures
+$data | get users | each { |user|
+  {
+    name: $user.name,
+    age: $user.profile.age,
+    city: $user.profile.city
+  }
+}
+
+# Deep filtering
+$data | get users | where profile.age > 28
+```
+
+### Data Validation and Cleaning
+
+Ensure data quality through validation:
+
+```nu
+# Validate required fields
+def validate_users [users: list] {
+  $users | each { |user|
+    let errors = []
+    let errors = if ($user.name | is-empty) {
+      $errors | append "Name is required"
+    } else { $errors }
+    let errors = if ($user.age | describe) != "int" {
+      $errors | append "Age must be an integer"
+    } else { $errors }
+
+    $user | insert validation_errors $errors
+  } | where ($in.validation_errors | length) == 0
+}
+
+# Clean and normalize data
+def clean_phone_numbers [data: list] {
+  $data | each { |record|
+    let clean_phone = $record.phone |
+      str replace --all "[^0-9]" "" |  # Remove non-digits
+      str replace '^1' ""              # Remove country code
+
+    $record | update phone $clean_phone
+  }
+}
+```
+
+### Advanced Filtering Techniques
+
+Build complex filters:
+
+```nu
+# Multi-condition filtering with computed values
+ps | where (cpu > 10) and (mem > ($env.available_memory? | default 1000000)) and (name !~ "system")
+
+# Filter with statistical conditions
+let avg_cpu = ps | get cpu | math avg
+ps | where cpu > ($avg_cpu * 1.5)  # Processes using 50% more than average
+
+# Dynamic filtering based on data
+def filter_outliers [data: list, field: string, multiplier: float = 1.5] {
+  let avg = $data | get $field | math avg
+  let threshold = $avg * $multiplier
+  $data | where ($in | get $field) <= $threshold
+}
+```
+
+### Error Handling Strategies
+
+Handle errors gracefully in data processing pipelines:
+
+```nu
+# Graceful error handling in transformations
+def safe_process_files [directory: string] {
+  ls $directory | each { |file|
+    try {
+      let content = open $file.name
+      let processed = $content | some_complex_transformation
+      {file: $file.name, status: "success", result: $processed}
+    } catch { |err|
+      {file: $file.name, status: "error", error: $err.msg}
+    }
+  }
+}
+
+# Continue processing despite errors
+def process_with_fallbacks [data: list] {
+  $data | each { |item|
+    try {
+      primary_processing $item
+    } catch {
+      try {
+        fallback_processing $item
+      } catch { |err|
+        {item: $item, status: "failed", error: $err.msg}
+      }
+    }
+  }
+}
+```
+
+### Performance Optimization
+
+Optimize data processing for large datasets:
+
+```nu
+# Stream processing for large files
+def process_large_log [file: string] {
+  # Process in chunks to avoid memory issues
+  open $file | lines |
+    enumerate |
+    group-by {|row| ($row.index / 1000 | math floor)} |
+    each { |chunk|
+      $chunk.items | each { |line|
+        # Process individual line
+        $line.item | parse_log_line
+      }
+    } | flatten
+}
+
+# Efficient filtering before expensive operations
+def analyze_expensive_data [data: list] {
+  $data |
+    where relevant_field == "target_value" |  # Filter early
+    each { |item| expensive_computation $item } |
+    sort-by result |
+    first 10
+}
+```
+
+### Parallel Processing Patterns
+
+Handle concurrent operations:
+
+```nu
+# Process multiple files concurrently (conceptual)
+def process_files_parallel [files: list] {
+  $files | each { |file|
+    # Each file processing could be done in parallel
+    {
+      file: $file.name,
+      result: (process_single_file $file),
+      timestamp: (date now)
+    }
+  }
+}
+```
+
+### Practical Example: Data Pipeline
+
+Build a comprehensive data processing pipeline:
+
+```nu
+def sales_analysis_pipeline [data_dir: string, output_file: string] {
+  print "Starting sales analysis pipeline..."
+
+  # 1. Data ingestion
+  let raw_data = ls $data_dir | where name =~ "sales.*\.csv$" | each { |file|
+    try {
+      let data = open $file.name
+      $data | insert source_file $file.name
+    } catch { |err|
+      print $"Warning: Could not process ($file.name): ($err.msg)"
+      []
+    }
+  } | flatten
+
+  print $"Loaded ($raw_data | length) sales records from ($ls $data_dir | where name =~ 'sales.*\.csv$' | length) files"
+
+  # 2. Data validation and cleaning
+  let clean_data = $raw_data | each { |record|
+    # Validate required fields
+    if ($record.amount? == null) or ($record.date? == null) or ($record.product? == null) {
+      null
+    } else {
+      # Clean and normalize
+      $record |
+        update amount ($record.amount | into float) |
+        update date ($record.date | into datetime) |
+        update product ($record.product | str trim | str title-case)
+    }
+  } | where $it != null
+
+  print $"Cleaned data: ($clean_data | length) valid records"
+
+  # 3. Data analysis
+  let analysis = {
+    # Total sales
+    total_revenue: ($clean_data | get amount | math sum),
+
+    # Sales by product
+    product_analysis: (
+      $clean_data | group-by product | transpose product sales | each { |group|
+        {
+          product: $group.product,
+          total_sales: ($group.sales | get amount | math sum),
+          order_count: ($group.sales | length),
+          avg_order: ($group.sales | get amount | math avg)
+        }
+      } | sort-by total_sales | reverse
+    ),
+
+    # Monthly trends
+    monthly_trends: (
+      $clean_data | each { |record|
+        $record | insert month ($record.date | format date "%Y-%m")
+      } | group-by month | transpose month sales | each { |group|
+        {
+          month: $group.month,
+          revenue: ($group.sales | get amount | math sum),
+          orders: ($group.sales | length)
+        }
+      } | sort-by month
+    ),
+
+    # Summary statistics
+    statistics: {
+      avg_order_value: ($clean_data | get amount | math avg),
+      median_order_value: ($clean_data | get amount | math median),
+      total_orders: ($clean_data | length),
+      date_range: {
+        from: ($clean_data | get date | math min),
+        to: ($clean_data | get date | math max)
+      }
+    }
+  }
+
+  # 4. Generate report
+  print "\n=== Sales Analysis Report ==="
+  print $"Total Revenue: $($analysis.statistics.total_orders)"
+  print $"Total Orders: ($analysis.statistics.total_orders)"
+  print $"Average Order Value: $($analysis.statistics.avg_order_value | math round --precision 2)"
+
+  print "\nTop 5 Products by Revenue:"
+  $analysis.product_analysis | first 5 | each { |product|
+    print $"  ($product.product): $($product.total_sales | math round --precision 2) (($product.order_count) orders)"
+  }
+
+  # 5. Save detailed results
+  $analysis | save $output_file
+  print $"\nDetailed analysis saved to ($output_file)"
+}
+
+# Usage
+sales_analysis_pipeline "data/sales" "sales_report.json"
+```
+
+### Cookbook Recipe: Advanced Data Analysis
+
+```nu
+# Data quality assessment
+def assess_data_quality [data: list] {
+  let total_records = $data | length
+  let columns = $data | first | columns
+
+  {
+    total_records: $total_records,
+    column_analysis: (
+      $columns | each { |col|
+        let values = $data | get $col
+        let non_null = $values | where $it != null
+        let unique_count = $non_null | uniq | length
+
+        {
+          column: $col,
+          missing_count: ($total_records - ($non_null | length)),
+          missing_percent: (($total_records - ($non_null | length)) / $total_records * 100 | math round),
+          unique_values: $unique_count,
+          data_types: ($non_null | each { describe } | uniq)
+        }
+      }
+    ),
+    duplicate_records: (
+      $data | group-by { $in | to json } |
+      where { ($in | length) > 1 } | length
+    )
+  }
+}
+
+# Statistical outlier detection
+def find_outliers [data: list, column: string] {
+  let values = $data | get $column | where $it != null
+  let q1 = $values | math percentile 25
+  let q3 = $values | math percentile 75
+  let iqr = $q3 - $q1
+  let lower_bound = $q1 - (1.5 * $iqr)
+  let upper_bound = $q3 + (1.5 * $iqr)
+
+  $data | where ($in | get $column) < $lower_bound or ($in | get $column) > $upper_bound
+}
+```
+
+**Exercise:** Create a data quality assessment function that analyzes a dataset and reports missing values, data type inconsistencies, and potential outliers.
+
+---
+
+## Chapter 8: Building Real Applications {#chapter-8}
+
+### Application Architecture
+
+Structure larger Nushell applications using modules and clear organization:
+
+```nu
+# config.nu - Application configuration
+export def get_config [] {
+  {
+    database_path: "app.db",
+    log_level: "info",
+    max_retries: 3,
+    timeout: 30sec
+  }
+}
+
+# utils.nu - Utility functions
+export def log [level: string, message: string] {
+  let timestamp = date now | format date "%Y-%m-%d %H:%M:%S"
+  print $"[($timestamp)] ($level | str upcase): ($message)"
+}
+
+export def retry [times: int, command: closure] {
+  mut attempt = 0
+  while $attempt < $times {
+    try {
+      return (do $command)
+    } catch { |err|
+      $attempt = $attempt + 1
+      if $attempt == $times {
+        error make {msg: $"Failed after ($times) attempts: ($err.msg)"}
+      }
+      log "warn" $"Attempt ($attempt) failed: ($err.msg). Retrying..."
+      sleep 1sec
+    }
+  }
+}
+```
+
+### Command-Line Interface Design
+
+Create professional CLI applications:
+
+```nu
+# app.nu - Main application
+use config.nu *
+use utils.nu *
+
+def main [
+  command: string,           # Command to execute
+  --config (-c): string,     # Configuration file path
+  --verbose (-v),            # Enable verbose output
+  --dry-run (-n),           # Show what would be done
+  ...args                   # Additional arguments
+] {
+  let config = if ($config | is-empty) {
+    get_config
+  } else {
+    open $config | from json
+  }
+
+  if $verbose {
+    log "info" $"Starting ($command) with config: ($config)"
+  }
+
+  match $command {
+    "init" => init_command $args,
+    "process" => process_command $args --dry-run=$dry_run,
+    "report" => report_command $args,
+    "cleanup" => cleanup_command $args --dry-run=$dry_run,
+    _ => {
+      print "Usage: app.nu <command> [options]"
+      print "Commands: init, process, report, cleanup"
+      exit 1
+    }
+  }
+}
+
+def init_command [args: list] {
+  log "info" "Initializing application..."
+  # Implementation here
+}
+
+def process_command [args: list, --dry-run] {
+  log "info" $"Processing with args: ($args)"
+  if $dry_run {
+    print "DRY RUN: Would process the following items..."
+    # Show what would be done
+  } else {
+    # Actual processing
+  }
+}
+```
+
+### Data Processing Pipeline
+
+Build a complete data processing application:
+
+```nu
+# data_pipeline.nu
+def main [
+  input_dir: string,         # Input directory
+  output_dir: string,        # Output directory
+  --format (-f): string = "json",  # Output format
+  --parallel (-p): int = 4,        # Parallel workers
+  --filter: string,                # Filter expression
+] {
+  # Validate inputs
+  if not ($input_dir | path exists) {
+    error make {msg: $"Input directory does not exist: ($input_dir)"}
+  }
+
+  # Create output directory
+  mkdir $output_dir
+
+  # Discover input files
+  let input_files = ls $input_dir | where type == "file" and name =~ "\.(csv|json|yaml)$"
+  log "info" $"Found ($input_files | length) input files"
+
+  # Process files
+  let results = $input_files | each { |file|
+    try {
+      process_file $file.name $output_dir --format $format --filter $filter
+    } catch { |err|
+      log "error" $"Failed to process ($file.name): ($err.msg)"
+      {file: $file.name, status: "error", error: $err.msg}
+    }
+  }
+
+  # Generate summary report
+  let summary = generate_summary $results
+  $summary | save ($output_dir | path join "processing_summary.json")
+
+  print_summary $summary
+}
+
+def process_file [input_file: string, output_dir: string, --format: string, --filter: string] {
+  log "info" $"Processing ($input_file)"
+
+  # Load data based on file extension
+  let data = match ($input_file | path parse | get extension) {
+    "csv" => (open $input_file),
+    "json" => (open $input_file),
+    "yaml" => (open $input_file),
+    _ => {error make {msg: $"Unsupported file format"}}
+  }
+
+  # Apply filter if specified
+  let filtered_data = if ($filter | is-empty) {
+    $data
+  } else {
+    # Apply custom filter logic here
+    $data | where ($filter | into closure)
+  }
+
+  # Transform data
+  let processed_data = $filtered_data | each { |record|
+    # Add processing timestamp
+    $record | insert processed_at (date now)
+  }
+
+  # Save output
+  let output_file = ($input_file | path parse | get stem) + "_processed." + $format
+  let output_path = $output_dir | path join $output_file
+
+  match $format {
+    "json" => ($processed_data | to json | save $output_path),
+    "csv" => ($processed_data | to csv | save $output_path),
+    "yaml" => ($processed_data | to yaml | save $output_path),
+    _ => {error make {msg: $"Unsupported output format: ($format)"}}
+  }
+
+  {
+    input_file: $input_file,
+    output_file: $output_path,
+    records_processed: ($processed_data | length),
+    status: "success"
+  }
+}
+```
+
+### Web Service Integration
+
+Build applications that interact with web services:
+
+```nu
+# api_client.nu
+def main [
+  endpoint: string,          # API endpoint
+  --method (-m): string = "GET",    # HTTP method
+  --data (-d): string,              # Request data
+  --headers (-h): list = [],        # Custom headers
+  --output (-o): string,            # Output file
+] {
+  let url = build_url $endpoint
+  let request_headers = build_headers $headers
+
+  let response = try {
+    match $method {
+      "GET" => (http get $url --headers $request_headers),
+      "POST" => (http post $url ($data | from json) --headers $request_headers),
+      "PUT" => (http put $url ($data | from json) --headers $request_headers),
+      "DELETE" => (http delete $url --headers $request_headers),
+      _ => {error make {msg: $"Unsupported HTTP method: ($method)"}}
+    }
+  } catch { |err|
+    log "error" $"API request failed: ($err.msg)"
+    exit 1
+  }
+
+  # Process response
+  let processed_response = process_api_response $response
+
+  # Output results
+  if ($output | is-empty) {
+    $processed_response | to json
+  } else {
+    $processed_response | save $output
+    log "info" $"Response saved to ($output)"
+  }
+}
+
+def build_url [endpoint: string] {
+  let base_url = $env.API_BASE_URL? | default "https://api.example.com"
+  if ($endpoint | str starts-with "/") {
+    $base_url + $endpoint
+  } else {
+    $base_url + "/" + $endpoint
+  }
+}
+
+def process_api_response [response: record] {
+  {
+    timestamp: (date now),
+    status: "success",
+    data: $response,
+    metadata: {
+      response_time: "calculated_from_headers",
+      content_length: ($response | to json | str length)
+    }
+  }
+}
+```
+
+### Configuration Management
+
+Handle application configuration properly:
+
+```nu
+# config_manager.nu
+export def load_config [config_path: string = "config.json"] {
+  let default_config = {
+    database: {
+      host: "localhost",
+      port: 5432,
+      name: "myapp"
+    },
+    logging: {
+      level: "info",
+      file: "app.log"
+    },
+    features: {
+      enable_cache: true,
+      max_workers: 4
+    }
+  }
+
+  if ($config_path | path exists) {
+    try {
+      let user_config = open $config_path
+      merge_config $default_config $user_config
+    } catch { |err|
+      log "warn" $"Could not load config file ($config_path): ($err.msg)"
+      log "info" "Using default configuration"
+      $default_config
+    }
+  } else {
+    log "info" $"Config file ($config_path) not found, using defaults"
+    $default_config
+  }
+}
+
+def merge_config [default: record, user: record] {
+  # Deep merge configuration objects
+  mut result = $default
+  for key in ($user | columns) {
+    if ($default | get $key | describe) == "record" and ($user | get $key | describe) == "record" {
+      $result = ($result | upsert $key (merge_config ($default | get $key) ($user | get $key)))
+    } else {
+      $result = ($result | upsert $key ($user | get $key))
+    }
+  }
+  $result
+}
+
+export def validate_config [config: record] {
+  let required_keys = ["database.host", "database.port", "logging.level"]
+
+  for key in $required_keys {
+    let keys = $key | split row "."
+    let value = $keys | reduce -f $config { |k, acc| $acc | get $k }
+    if ($value | is-empty) {
+      error make {msg: $"Required configuration key missing: ($key)"}
+    }
+  }
+
+  # Additional validation
+  if ($config.database.port | into int) < 1024 {
+    log "warn" "Database port is in reserved range"
+  }
+
+  true
+}
+```
+
+### Testing Framework
+
+Build tests for your Nushell applications:
+
+```nu
+# test_framework.nu
+export def assert_equal [actual: any, expected: any, message: string = ""] {
+  if $actual != $expected {
+    let msg = if ($message | is-empty) {
+      $"Assertion failed: expected ($expected), got ($actual)"
+    } else {
+      $"($message): expected ($expected), got ($actual)"
+    }
+    error make {msg: $msg}
+  }
+}
+
+export def assert_true [condition: bool, message: string = ""] {
+  if not $condition {
+    let msg = if ($message | is-empty) {
+      "Assertion failed: expected true"
+    } else {
+      $"($message): expected true"
+    }
+    error make {msg: $msg}
+  }
+}
+
+export def run_tests [test_dir: string = "tests"] {
+  let test_files = ls $test_dir | where name ends-with "_test.nu"
+
+  mut results = []
+  for test_file in $test_files {
+    print $"Running tests in ($test_file.name)..."
+    try {
+      nu $test_file.name
+      $results = ($results | append {file: $test_file.name, status: "passed"})
+      print $"  ✓ ($test_file.name) passed"
+    } catch { |err|
+      $results = ($results | append {file: $test_file.name, status: "failed", error: $err.msg})
+      print $"  ✗ ($test_file.name) failed: ($err.msg)"
+    }
+  }
+
+  let passed = $results | where status == "passed" | length
+  let failed = $results | where status == "failed" | length
+
+  print $"\nTest Results: ($passed) passed, ($failed) failed"
+
+  if $failed > 0 { exit 1 }
+}
+
+# Example test file: utils_test.nu
+use ../utils.nu *
+use test_framework.nu *
+
+def test_log_format [] {
+  # Test would go here - this is just an example structure
+  assert_true true "Placeholder test"
+}
+
+def main [] {
+  test_log_format
+  print "All utils tests passed!"
+}
+```
+
+### Complete Application Example
+
+A file organizer application that demonstrates all concepts:
+
+```nu
+#!/usr/bin/env nu
+
+# File Organizer - Complete Nushell Application
+# Organizes files in a directory based on various criteria
+
+use std log
+
+def main [
+  target_dir: string,        # Directory to organize
+  --by (-b): string = "ext", # Organization method: ext, date, size
+  --dry-run (-n),           # Show what would be done
+  --config (-c): string,     # Configuration file
+  --verbose (-v),           # Verbose output
+] {
+  let config = load_app_config $config
+
+  if $verbose {
+    log info $"Starting file organization for ($target_dir)"
+    log info $"Method: ($by), Dry run: ($dry_run)"
+  }
+
+  # Validate target directory
+  if not ($target_dir | path exists) {
+    log error $"Directory does not exist: ($target_dir)"
+    exit 1
+  }
+
+  # Get files to organize
+  let files = ls $target_dir | where type == "file"
+  if ($files | length) == 0 {
+    log info "No files found to organize"
+    exit 0
+  }
+
+  log info $"Found ($files | length) files to organize"
+
+  # Create organization plan
+  let plan = match $by {
+    "ext" => (organize_by_extension $files $target_dir),
+    "date" => (organize_by_date $files $target_dir),
+    "size" => (organize_by_size $files $target_dir $config),
+    _ => {
+      log error $"Unknown organization method: ($by)"
+      exit 1
+    }
+  }
+
+  # Execute or preview plan
+  if $dry_run {
+    preview_plan $plan
+  } else {
+    execute_plan $plan $verbose
+  }
+}
+
+def load_app_config [config_path: string] {
+  let default = {
+    size_categories: {
+      small: 1mb,
+      medium: 10mb,
+      large: 100mb
+    },
+    date_format: "%Y/%m",
+    create_subdirs: true
+  }
+
+  if ($config_path | is-empty) or not ($config_path | path exists) {
+    $default
+  } else {
+    try {
+      let user_config = open $config_path
+      $default | merge $user_config
+    } catch {
+      log warning $"Could not load config from ($config_path), using defaults"
+      $default
+    }
+  }
+}
+
+def organize_by_extension [files: list, base_dir: string] {
+  $files | group-by { |file|
+    let ext = $file.name | path parse | get extension
+    if ($ext | is-empty) { "no_extension" } else { $ext }
+  } | transpose extension files | each { |group|
+    let target_dir = [$base_dir, $"($group.extension)_files"] | path join
+    {
+      category: $group.extension,
+      target_dir: $target_dir,
+      files: $group.files
+    }
+  }
+}
+
+def organize_by_date [files: list, base_dir: string] {
+  $files | group-by { |file|
+    $file.modified | format date "%Y-%m"
+  } | transpose date files | each { |group|
+    let target_dir = [$base_dir, $group.date] | path join
+    {
+      category: $group.date,
+      target_dir: $target_dir,
+      files: $group.files
+    }
+  }
+}
+
+def organize_by_size [files: list, base_dir: string, config: record] {
+  $files | each { |file|
+    let category = if $file.size < $config.size_categories.small {
+      "small"
+    } else if $file.size < $config.size_categories.medium {
+      "medium"
+    } else if $file.size < $config.size_categories.large {
+      "large"
+    } else {
+      "huge"
+    }
+
+    $file | insert size_category $category
+  } | group-by size_category | transpose category files | each { |group|
+    let target_dir = [$base_dir, $"($group.category)_files"] | path join
+    {
+      category: $group.category,
+      target_dir: $target_dir,
+      files: $group.files
+    }
+  }
+}
+
+def preview_plan [plan: list] {
+  print "=== Organization Plan (DRY RUN) ==="
+
+  for group in $plan {
+    print $"\nCategory: ($group.category)"
+    print $"Target Directory: ($group.target_dir)"
+    print $"Files to move: ($group.files | length)"
+
+    $group.files | each { |file|
+      print $"  ($file.name) -> ($group.target_dir)"
+    }
+  }
+
+  let total_files = $plan | get files | flatten | length
+  print $"\nTotal files to organize: ($total_files)"
+}
+
+def execute_plan [plan: list, verbose: bool] {
+  print "=== Executing Organization Plan ==="
+
+  mut moved_count = 0
+  mut error_count = 0
+
+  for group in $plan {
+    # Create target directory
+    try {
+      mkdir $group.target_dir
+      if $verbose {
+        log info $"Created directory: ($group.target_dir)"
+      }
+    } catch { |err|
+      log error $"Could not create directory ($group.target_dir): ($err.msg)"
+      continue
+    }
+
+    # Move files
+    for file in $group.files {
+      try {
+        let target_path = [$group.target_dir, $file.name] | path join
+        mv $file.name $target_path
+        $moved_count = $moved_count + 1
+
+        if $verbose {
+          log info $"Moved ($file.name) to ($target_path)"
+        }
+      } catch { |err|
+        log error $"Could not move ($file.name): ($err.msg)"
+        $error_count = $error_count + 1
+      }
+    }
+  }
+
+  print $"\n=== Organization Complete ==="
+  print $"Files moved: ($moved_count)"
+  print $"Errors: ($error_count)"
+
+  if $error_count > 0 {
+    exit 1
+  }
+}
+```
+
+### Complete Command Reference
+
+**Essential Commands by Category:**
+
+**File & Directory Operations:**
+```nu
+ls, cd, pwd, mkdir, rmdir, cp, mv, rm, open, save, glob, which, du
+```
+
+**Data Processing:**
+```nu
+where, select, sort-by, group-by, uniq, first, last, skip, take, length, append, prepend, insert, update, upsert, transpose, reverse, flatten, wrap, unwrap
+```
+
+**Text Processing:**
+```nu
+str {length, trim, upcase, downcase, contains, starts-with, ends-with, replace, match, split}, parse, lines, detect columns, from {json, csv, yaml, toml, xml}, to {json, csv, yaml, toml}
+```
+
+**Math & Statistics:**
+```nu
+math {sum, avg, min, max, median, mode, stddev, variance, round, floor, ceil, abs}, range
+```
+
+**System Information:**
+```nu
+ps, sys, whoami, date, version, help, history, which
+```
+
+**Network & HTTP:**
+```nu
+http {get, post, put, delete}, url {parse, join}, fetch
+```
+
+**Control Flow:**
+```nu
+if, match, for, while, loop, break, continue, return, try, catch, error
+```
+
+**Variables & Functions:**
+```nu
+let, mut, def, do, collect, each, reduce, filter, map, zip, enumerate
+```
+
+**External Integration:**
+```nu
+^command, with-env, $env, jobs, fg, bg, kill, run-external
+```
+
+### Power User One-Liners (From nu_scripts)
+
+```nu
+# Find duplicate files by hash
+ls **/* | where type == file | insert hash { |f| open $f.name | hash sha256 } | group-by hash | where { ($in | length) > 1 }
+
+# Monitor CPU usage over time
+1..10 | each { |i| {time: (date now), cpu: (sys | get cpu.cpu_usage)} | sleep 1sec }
+
+# Convert all CSV files to JSON
+ls *.csv | each { |file| open $file.name | to json | save ($file.name | str replace ".csv" ".json") }
+
+# Find files modified in last N days
+ls **/* | where type == file and modified > ((date now) - 7day)
+
+# Get weather for city (API example)
+http get $"https://wttr.in/(city)?format=j1" | get current_condition.0
+```
+
+**Exercise:** Extend the file organizer to support custom organization rules defined in a configuration file, including regex patterns for file names and custom directory structures.
+
+---
+
+## Conclusion
+
+You now have a comprehensive understanding of Nushell's core concepts and practical applications. The key insights to remember:
+
+1. **Structured Data First**: Everything in Nushell is structured data, making complex data processing natural and composable.
+
+2. **Type Safety**: Strong typing prevents common shell scripting errors and provides better error messages.
+
+3. **Functional Approach**: Prefer immutable data and functional transformations over imperative operations.
+
+4. **Pipeline Composition**: Build complex operations by composing simple, focused commands.
+
+5. **Integration**: Nushell works alongside existing tools while providing better data handling.
+
+**Next Steps:**
+- Practice with real data processing tasks
+- Explore the Nushell standard library
+- Join the Nushell community for advanced techniques
+- Build your own modules and applications
+
+Nushell transforms shell programming from text manipulation to structured data processing, making it more reliable, maintainable, and powerful for modern computing tasks.
+
+## Appendix A: Command Quick Reference
+
+### Most Used Commands (90% of daily usage)
+```nu
+# Navigation & Files
+ls, cd, pwd, open, save
+
+# Data Processing
+where, select, sort-by, group-by, first, last, length
+
+# Transformation
+each, reduce, append, insert, update
+
+# Text Processing
+str trim, str replace, lines, parse, split row
+
+# System
+ps, sys, help, which
+
+# Math
+math sum, math avg, math max, math min
+```
+
+### Advanced Commands (for power users)
+```nu
+# Complex Data Operations
+transpose, flatten, wrap, unwrap, zip, enumerate, collect
+
+# External Integration
+^command, with-env, jobs, fg, bg
+
+# Network & APIs
+http get, http post, url parse, fetch
+
+# File Formats
+from/to: json, csv, yaml, toml, xml, ssv
+```
+
+### Tips for Transitioning from Other Shells
+
+**From Bash/Zsh:**
+- Use `ls | where name =~ pattern` instead of `ls | grep pattern`
+- Use `ps | where name == "process"` instead of `ps aux | grep process`
+- Use `open file.json` instead of `cat file.json | jq`
+
+**From PowerShell:**
+- Nushell's objects are similar but syntax is more functional
+- Use `|` for pipelines, `{ }` for blocks
+- `where` and `select` work similarly
+
+**From Fish:**
+- Nushell has similar modern features but with structured data
+- Completions work automatically for most commands
+- Configuration is more programmatic
+
+## Appendix B: Common Patterns
+
+```nu
+# Pattern: Safe file processing
+ls | where type == file and name =~ pattern | each { |file|
+  try {
+    # process file
+    {file: $file.name, status: "success"}
+  } catch { |err|
+    {file: $file.name, status: "error", error: $err.msg}
+  }
+}
+
+# Pattern: Data aggregation
+data | group-by category | transpose category items | each { |group|
+  {
+    category: $group.category,
+    count: ($group.items | length),
+    total: ($group.items | get value | math sum)
+  }
+}
+
+# Pattern: Configuration with defaults
+def load_config [path: string = "config.json"] {
+  let defaults = {setting1: "default", setting2: 42}
+  if ($path | path exists) {
+    $defaults | merge (open $path)
+  } else {
+    $defaults
+  }
+}
+```
