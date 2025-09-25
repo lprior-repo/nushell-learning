@@ -26,6 +26,9 @@
 **Chapter 6: [System Integration](#chapter-6)**
 *External commands, environment, and process management*
 
+**Chapter 6.5: [HTTP Operations and API Integration](#chapter-6-5)**
+*HTTP requests, API clients, and web service integration*
+
 **Chapter 7: [Advanced Data Processing](#chapter-7)**
 *Complex transformations, pipelines, and error handling*
 
@@ -1598,6 +1601,435 @@ def service_health [] {
 
 **Exercise:** Create a function that monitors a web service by periodically checking its health endpoint and logging response times and status codes.
 
+---
+
+## Chapter 6.5: HTTP Operations and API Integration {#chapter-6-5}
+
+### Making HTTP Requests
+
+Nushell's built-in HTTP commands make API integration straightforward and return structured data:
+
+```nu
+# Basic GET requests
+http get "https://api.github.com/repos/nushell/nushell"
+http get "https://httpbin.org/json"
+
+# GET with headers
+http get "https://api.github.com/user" --headers {
+  Authorization: "token ghp_xxxx",
+  "User-Agent": "Nushell-Client/1.0"
+}
+
+# GET with query parameters
+http get "https://api.github.com/search/repositories" --headers {
+  Accept: "application/vnd.github.v3+json"
+} --query {
+  q: "nushell language:rust",
+  sort: "stars",
+  per_page: 10
+}
+```
+
+### POST, PUT, and Other HTTP Methods
+
+Send data to APIs with various HTTP methods:
+
+```nu
+# POST with JSON data
+let user_data = {
+  name: "Alice Johnson",
+  email: "alice@example.com",
+  role: "developer"
+}
+
+http post "https://httpbin.org/post" $user_data --headers {
+  "Content-Type": "application/json"
+}
+
+# PUT request to update resource
+let updated_user = {
+  name: "Alice Johnson",
+  email: "alice.johnson@company.com",
+  role: "senior_developer"
+}
+
+http put "https://api.example.com/users/123" $updated_user
+
+# PATCH for partial updates
+http patch "https://api.example.com/users/123" {
+  role: "tech_lead"
+}
+
+# DELETE request
+http delete "https://api.example.com/users/123"
+
+# Custom headers and authentication
+http post "https://api.stripe.com/v1/charges" {
+  amount: 2000,
+  currency: "usd",
+  source: "tok_visa"
+} --headers {
+  Authorization: "Bearer sk_test_xxxx",
+  "Stripe-Version": "2022-11-15"
+}
+```
+
+### Processing API Responses
+
+Handle API responses with Nushell's data processing capabilities:
+
+```nu
+# Extract specific data from GitHub API
+let repo_info = http get "https://api.github.com/repos/nushell/nushell"
+{
+  name: $repo_info.name,
+  stars: $repo_info.stargazers_count,
+  forks: $repo_info.forks_count,
+  language: $repo_info.language,
+  last_updated: $repo_info.updated_at
+}
+
+# Process paginated API responses
+def fetch_all_issues [repo: string, per_page: int = 100] {
+  mut page = 1
+  mut all_issues = []
+
+  loop {
+    let issues = http get $"https://api.github.com/repos/($repo)/issues" --query {
+      state: "all",
+      per_page: $per_page,
+      page: $page
+    }
+
+    if ($issues | length) == 0 { break }
+
+    $all_issues = ($all_issues | append $issues)
+    $page = $page + 1
+
+    if ($issues | length) < $per_page { break }
+  }
+
+  $all_issues
+}
+
+# Transform API data
+let weather = http get "https://wttr.in/London?format=j1"
+$weather.current_condition.0 | select temp_C humidity windspeedKmph weatherDesc.0.value
+```
+
+### Error Handling for HTTP Requests
+
+Handle network errors and HTTP status codes gracefully:
+
+```nu
+# Basic error handling
+def safe_api_call [url: string] {
+  try {
+    http get $url
+  } catch { |err|
+    {
+      success: false,
+      error: $err.msg,
+      url: $url,
+      timestamp: (date now)
+    }
+  }
+}
+
+# Advanced error handling with retry logic
+def robust_http_get [url: string, --retries: int = 3, --timeout: duration = 30sec] {
+  mut attempt = 0
+
+  while $attempt < $retries {
+    try {
+      let response = http get $url --max-time $timeout
+      return {
+        success: true,
+        data: $response,
+        attempts: ($attempt + 1)
+      }
+    } catch { |err|
+      $attempt = $attempt + 1
+      if $attempt == $retries {
+        return {
+          success: false,
+          error: $err.msg,
+          final_attempt: $attempt,
+          url: $url
+        }
+      }
+      print $"Attempt ($attempt) failed: ($err.msg). Retrying..."
+      sleep 1sec
+    }
+  }
+}
+
+# Handle specific HTTP status codes
+def handle_api_response [response: any] {
+  match $response.status? {
+    200..299 => { success: true, data: $response },
+    400 => { error: "Bad Request", details: $response },
+    401 => { error: "Unauthorized - Check API key", details: $response },
+    404 => { error: "Resource not found", details: $response },
+    429 => { error: "Rate limit exceeded", details: $response },
+    500..599 => { error: "Server error", details: $response },
+    _ => { error: $"Unexpected status: ($response.status)", details: $response }
+  }
+}
+```
+
+### Working with Different API Formats
+
+Handle various API response formats:
+
+```nu
+# REST API with JSON
+let github_user = http get "https://api.github.com/users/octocat"
+$github_user | select login name public_repos followers
+
+# GraphQL API
+let graphql_query = {
+  query: "query { viewer { login name email } }"
+}
+
+http post "https://api.github.com/graphql" $graphql_query --headers {
+  Authorization: "Bearer ghp_xxxx"
+}
+
+# XML API (convert to structured data)
+let xml_response = http get "https://httpbin.org/xml"
+$xml_response | from xml
+
+# CSV API data
+let csv_data = http get "https://example.com/data.csv"
+$csv_data | from csv
+
+# Plain text API with parsing
+let text_response = http get "https://httpbin.org/status/200"
+$text_response | lines | parse "{key}: {value}"
+```
+
+### Building API Clients
+
+Create reusable API client functions:
+
+```nu
+# GitHub API client
+def github [endpoint: string, --token: string] {
+  let base_url = "https://api.github.com"
+  let headers = if ($token | is-empty) {
+    { "User-Agent": "Nushell-GitHub-Client" }
+  } else {
+    {
+      Authorization: $"token ($token)",
+      "User-Agent": "Nushell-GitHub-Client"
+    }
+  }
+
+  http get ($base_url + "/" + $endpoint) --headers $headers
+}
+
+# Usage
+github "repos/nushell/nushell" --token $env.GITHUB_TOKEN
+github "user/repos" --token $env.GITHUB_TOKEN | where private == false
+
+# Slack API client
+def slack_post [channel: string, text: string, --token: string] {
+  let token = $token | default $env.SLACK_TOKEN
+
+  http post "https://slack.com/api/chat.postMessage" {
+    channel: $channel,
+    text: $text
+  } --headers {
+    Authorization: $"Bearer ($token)",
+    "Content-Type": "application/json"
+  }
+}
+
+# Weather API client with caching
+def weather [city: string, --use-cache] {
+  let cache_file = $"weather_($city).json"
+  let cache_age = if ($cache_file | path exists) {
+    (date now) - (ls $cache_file | get modified | first)
+  } else { 1day }
+
+  if $use_cache and $cache_age < 1hr {
+    print "Using cached weather data"
+    open $cache_file
+  } else {
+    let data = http get $"https://wttr.in/($city)?format=j1"
+    $data | save $cache_file
+    $data
+  }
+}
+```
+
+### Webhook and Real-time Data Processing
+
+Process incoming webhooks and streaming data:
+
+```nu
+# Simple webhook processor (conceptual)
+def process_webhook [payload: record] {
+  match $payload.event_type {
+    "user_created" => {
+      print $"New user: ($payload.user.name) <($payload.user.email)>"
+      # Send welcome email, update metrics, etc.
+    },
+    "purchase_completed" => {
+      print $"Purchase: $($payload.amount) by ($payload.customer.name)"
+      # Update inventory, send receipt, etc.
+    },
+    _ => {
+      print $"Unknown event: ($payload.event_type)"
+    }
+  }
+}
+
+# Poll API endpoint for changes
+def poll_api [url: string, interval: duration = 30sec] {
+  mut last_update = (date now) - 1day
+
+  loop {
+    try {
+      let response = http get $url --query { since: $last_update }
+
+      if ($response | length) > 0 {
+        print $"Found ($response | length) new items"
+        $response | each { |item| process_item $item }
+        $last_update = date now
+      }
+
+      sleep $interval
+    } catch { |err|
+      print $"Polling error: ($err.msg)"
+      sleep ($interval * 2)  # Back off on error
+    }
+  }
+}
+```
+
+### Advanced HTTP Features
+
+Leverage advanced HTTP capabilities:
+
+```nu
+# Custom timeout and redirects
+http get "https://httpbin.org/delay/5" --max-time 10sec --max-redirects 5
+
+# Upload files with multipart form data
+http post "https://httpbin.org/post" --content-type "multipart/form-data" {
+  file: (open image.jpg | into binary),
+  description: "My upload"
+}
+
+# Custom user agent and cookies
+http get "https://httpbin.org/cookies" --headers {
+  "User-Agent": "Mozilla/5.0 (Nushell Bot)",
+  Cookie: "session=abc123; theme=dark"
+}
+
+# Proxy support
+with-env { https_proxy: "http://proxy.company.com:8080" } {
+  http get "https://api.external-service.com/data"
+}
+
+# Download large files with progress
+def download_file [url: string, output: string] {
+  print $"Downloading ($url) to ($output)"
+  try {
+    http get $url | save $output
+    let size = ls $output | get size | first
+    print $"Downloaded ($size) bytes to ($output)"
+  } catch { |err|
+    print $"Download failed: ($err.msg)"
+  }
+}
+```
+
+### Practical Example: API Monitoring Dashboard
+
+```nu
+# Complete API monitoring system
+def api_health_check [] {
+  let endpoints = [
+    { name: "API Gateway", url: "https://api.myservice.com/health" },
+    { name: "User Service", url: "https://api.myservice.com/users/health" },
+    { name: "Payment Service", url: "https://api.myservice.com/payments/health" },
+    { name: "External API", url: "https://api.github.com" }
+  ]
+
+  let results = $endpoints | each { |endpoint|
+    let start_time = date now
+
+    let result = try {
+      let response = http get $endpoint.url --max-time 5sec
+      let end_time = date now
+      let response_time = $end_time - $start_time
+
+      {
+        service: $endpoint.name,
+        status: "healthy",
+        response_time_ms: ($response_time | into int) / 1000000,
+        timestamp: $end_time
+      }
+    } catch { |err|
+      let end_time = date now
+      {
+        service: $endpoint.name,
+        status: "unhealthy",
+        error: $err.msg,
+        response_time_ms: null,
+        timestamp: $end_time
+      }
+    }
+
+    $result
+  }
+
+  print "=== API Health Dashboard ==="
+  print $"Checked at: (date now | format date '%Y-%m-%d %H:%M:%S')"
+  print ""
+
+  $results | each { |result|
+    let status_icon = if $result.status == "healthy" { "✅" } else { "❌" }
+    let response_time = if ($result.response_time_ms | is-empty) {
+      "N/A"
+    } else {
+      $"($result.response_time_ms)ms"
+    }
+
+    print $"($status_icon) ($result.service): ($result.status) - ($response_time)"
+    if $result.status == "unhealthy" {
+      print $"   Error: ($result.error)"
+    }
+  }
+
+  let healthy_count = $results | where status == "healthy" | length
+  let total_count = $results | length
+  print $"\nOverall: ($healthy_count)/($total_count) services healthy"
+
+  # Save results for trend analysis
+  $results | to json | save --append "api_health_log.jsonl"
+}
+
+# Usage: Run health check
+api_health_check
+
+# Monitor continuously
+# while true { api_health_check; sleep 1min }
+```
+
+**Key HTTP Features in Nushell:**
+- **Automatic JSON parsing** - Responses are automatically parsed into structured data
+- **Type safety** - All data is properly typed and validated
+- **Pipeline integration** - HTTP responses flow naturally through data processing pipelines
+- **Error handling** - Built-in error handling with detailed error messages
+- **Header management** - Easy header manipulation for authentication and content types
+- **Query parameters** - Clean syntax for URL parameters
+- **Multiple formats** - Support for JSON, XML, CSV, and custom formats
+
+**Exercise:** Create an API client for a public API (like OpenWeatherMap or JSONPlaceholder) that includes authentication, error handling, response caching, and data transformation.
 
 ---
 
@@ -2699,6 +3131,9 @@ open data.csv | where price > 100 | to json | save expensive.json
 # Network and APIs
 http get "https://api.github.com/repos/nushell/nushell" | get stargazers_count  # Get repo stars
 http get $"https://wttr.in/($city)?format=j1" | get current_condition.0      # Weather data
+http post "https://api.example.com/users" {name: "Alice", email: "alice@example.com"}  # Create user
+http put "https://api.example.com/users/123" {name: "Alice Johnson"}  # Update user
+http delete "https://api.example.com/users/123"  # Delete user
 
 # Text processing chains
 open log.txt | lines | where $it =~ "ERROR" | length                        # Count error lines
@@ -2959,7 +3394,9 @@ transpose, flatten, wrap, unwrap, zip, enumerate, collect
 ^command, with-env, jobs, fg, bg
 
 # Network & APIs
-http get, http post, url parse
+http {get, post, put, patch, delete, head, options}
+url {parse, join, encode, decode}
+port  # Check if port is open
 
 # File Formats
 from/to: json, csv, yaml, toml, xml, ssv, nuon
