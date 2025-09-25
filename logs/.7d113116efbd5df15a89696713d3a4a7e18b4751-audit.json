@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/home/family/src/nushell-learning/logs/.7d113116efbd5df15a89696713d3a4a7e18b4751-audit.json",
+    "files": [
+        {
+            "date": 1758774597173,
+            "name": "/home/family/src/nushell-learning/logs/mcp-puppeteer-2025-09-24.log",
+            "hash": "505c92298e3234a6d71a57d8455adf3014dfb54d2839016a98a20c590f214575"
+        },
+        {
+            "date": 1758777373503,
+            "name": "/home/family/src/nushell-learning/logs/mcp-puppeteer-2025-09-25.log",
+            "hash": "72a04562854f6e2c320e753cc1b9ef432e0efaecc84b5b5743c5e6dbf41bdb6d"
+        }
+    ],
+    "hashType": "sha256"
+}
